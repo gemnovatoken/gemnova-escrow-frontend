@@ -1,7 +1,16 @@
 import { createWeb3Modal, defaultConfig, useWeb3ModalAccount, useWeb3ModalProvider } from '@web3modal/ethers/react'
 import { BrowserProvider, Contract, parseUnits, MaxUint256 } from 'ethers' 
-import { useState } from 'react' 
+import { useState, useEffect } from 'react' // 🟢 CAMBIO: Agregamos useEffect
+import { createClient } from '@supabase/supabase-js' // 🟢 CAMBIO: Importamos Supabase
 import { ESCROW_ADDRESSES, ESCROW_ABI } from './contractConfig'
+
+// ==========================================
+// 🟢 CAMBIO: INICIALIZAMOS SUPABASE FRONTEND
+// Asegúrate de cambiar estos textos por tus credenciales reales (Anon key, NO la Service Role)
+// ==========================================
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'Pega_aqui_tu_URL_de_Supabase';
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'Pega_aqui_tu_Anon_Key';
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 // 🌐 1. EL ARSENAL DE REDES (TESTNETS)
 const sepolia = {
@@ -84,11 +93,43 @@ export default function App() {
 
   const [action] = useState<string | null>(() => {
     const params = new URLSearchParams(window.location.search);
-    return params.get('action'); // Esto detecta el "release"
+    return params.get('action'); 
   });
 
-  // 🚦 CAMBIO 2: AGREGAMOS 'releasing' A LOS ESTADOS
   const [txStatus, setTxStatus] = useState<'idle' | 'approving' | 'creating' | 'releasing' | 'success'>('idle');
+  
+  // 🟢 CAMBIO: NUEVO ESTADO PARA ESCUCHAR AL RADAR
+  const [dbStatus, setDbStatus] = useState<string>('PENDING');
+
+  // ==========================================
+  // 🟢 CAMBIO: EL OÍDO DEL FRONTEND (SUPABASE REALTIME)
+  // ==========================================
+  useEffect(() => {
+    if (!supabaseId) return; // Si no hay ID, no escuchamos nada
+
+    console.log("📡 Frontend escuchando cambios para el contrato:", supabaseId);
+
+    const subscription = supabase
+      .channel('contratos-channel')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'contracts',
+          filter: `id=eq.${supabaseId}` // Solo escuchamos TU contrato
+        },
+        (payload) => {
+          console.log('⚡ ¡El Radar de DigitalOcean actualizó la BD!', payload);
+          setDbStatus(payload.new.status); // Actualiza la pantalla mágicamente
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(subscription);
+    };
+  }, [supabaseId]);
 
   const formatearIdParaBlockchain = (uuid: string) => {
     const clean = uuid.replace(/-/g, ''); 
@@ -96,7 +137,7 @@ export default function App() {
   }
 
   // ==========================================
-  // 🛡️ FUNCIÓN 1: METER EL DINERO (LO QUE YA TENÍAS)
+  // 🛡️ FUNCIÓN 1: METER EL DINERO 
   // ==========================================
   const handleCreateEscrow = async () => {
     if (!supabaseId) return;
@@ -143,7 +184,7 @@ export default function App() {
   }
 
   // ==========================================
-  // 🔓 CAMBIO 3: NUEVA FUNCIÓN PARA SACAR EL DINERO
+  // 🔓 FUNCIÓN 2: NUEVA FUNCIÓN PARA SACAR EL DINERO
   // ==========================================
   const handleReleaseFunds = async () => {
     if (!supabaseId) return;
@@ -167,8 +208,6 @@ export default function App() {
 
       setTxStatus('releasing');
       
-      // ⚠️ IMPORTANTE: Uso 'liberarPago' asumiendo que así se llama tu función en Solidity
-      // Si se llama diferente, cámbialo aquí abajo:
       const txRelease = await escrowContract.liberarPago(idParaContrato);
       await txRelease.wait();
       
@@ -177,7 +216,6 @@ export default function App() {
       console.error("Error al liberar:", error);
       setTxStatus('idle');
       
-      // Convertimos el error a un tipo seguro para poder leer su mensaje
       const err = error as { reason?: string; message?: string };
       alert("Error: " + (err.reason || err.message || "Revisa tu billetera o consúltalo con soporte."));
     }
@@ -207,7 +245,6 @@ export default function App() {
         <div style={{ backgroundColor: '#2a2a2a', padding: '30px', borderRadius: '15px', maxWidth: '600px', margin: '0 auto', border: '1px solid #FFD700' }}>
           
           {txStatus === 'success' ? (
-            // Mensaje de éxito dinámico (sirve para pagar y para liberar)
             <div style={{ padding: '20px', backgroundColor: '#004422', borderRadius: '10px', border: '2px dashed #00ffcc' }}>
               <h2 style={{ color: '#00ffcc', margin: '0 0 10px 0' }}>
                 {action === 'release' ? '🎉 Funds Released!' : '🎉 Vault Secured!'}
@@ -215,10 +252,20 @@ export default function App() {
               <p style={{ margin: '0', fontSize: '1.1rem' }}>
                 {action === 'release' ? 'The deal is finished and the seller has been paid.' : 'Your funds are safely locked in the smart contract.'}
               </p>
+
+              {/* 🟢 CAMBIO: MONITOR DE RADAR EN TIEMPO REAL */}
+              <div style={{ marginTop: '20px', padding: '10px', backgroundColor: '#111', borderRadius: '8px', border: '1px solid #333' }}>
+                <p style={{ margin: 0, fontSize: '0.9rem', color: '#aaa' }}>
+                  Estado de la Base de Datos: {' '}
+                  {dbStatus === 'PENDING' && <span style={{ color: '#FFD700', fontWeight: 'bold' }}>⏳ Esperando al Radar...</span>}
+                  {dbStatus === 'ACTIVE' && <span style={{ color: '#2ecc71', fontWeight: 'bold' }}>✅ Confirmado por el Radar</span>}
+                  {dbStatus === 'COMPLETED' && <span style={{ color: '#3498db', fontWeight: 'bold' }}>✅ Pago Completado y Registrado</span>}
+                </p>
+              </div>
+
             </div>
           ) : (
             <>
-              {/* CAMBIO 4: EL INTERRUPTOR VISUAL */}
               {action === 'release' ? (
                 // 🟢 BOTÓN DE LIBERAR FONDOS
                 <div style={{ border: '1px solid #2ecc71', padding: '15px', borderRadius: '10px' }}>
