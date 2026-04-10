@@ -138,6 +138,9 @@ export default function App() {
         (payload) => {
           console.log('⚡ ¡El Radar actualizó la BD!', payload);
           setDbStatus(payload.new.status); 
+          
+          // 🟢 ESTA ES LA LÍNEA MÁGICA QUE DEBES AGREGAR:
+          setTxStatus('idle'); 
         }
       )
       .subscribe();
