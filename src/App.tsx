@@ -124,7 +124,6 @@ export default function App() {
         console.log("Estado y datos iniciales encontrados:", data);
         setDbStatus(data.status); 
         
-        // 🟢 SALVAVIDAS: Si el monto o la billetera están vacíos en BD, usamos valores de seguridad
         setContractAmount(data.amount_usdt ? data.amount_usdt.toString() : '0'); 
         setSellerWallet(data.counterparty_wallet ? data.counterparty_wallet : '0x000000000000000000000000000000000000dEaD');
       }
@@ -290,11 +289,22 @@ export default function App() {
     }
   }
 
+  // ==========================================
+  // 🟢 ANTI-ATASCOS (RACE CONDITION FIX)
+  // ==========================================
+  useEffect(() => {
+    // Si MetaMask y la DB ya confirmaron, limpia el estado de los botones tras 1.5s
+    if (txStatus === 'success' && dbStatus !== 'PENDING') {
+      const timer = setTimeout(() => setTxStatus('idle'), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [txStatus, dbStatus]);
+
+
   return (
     <div style={{ textAlign: 'center', marginTop: '50px', fontFamily: 'sans-serif', backgroundColor: '#1a1a1a', color: 'white', minHeight: '100vh', padding: '20px' }}>
       <h1 style={{ color: '#FFD700', fontSize: '3rem', margin: '0' }}>🛡️ Escrow Multichain</h1>
       
-      {/* 🟢 DISEÑO PARA MOSTRAR EL MONTO REAL */}
       {supabaseId ? (
          <div style={{ display: 'inline-flex', flexDirection: 'column', gap: '10px', alignItems: 'center', marginBottom: '20px' }}>
            <h3 style={{ margin: 0, color: '#00ffcc', backgroundColor: '#003322', padding: '10px 15px', borderRadius: '10px', display: 'inline-block' }}>
@@ -418,7 +428,6 @@ export default function App() {
                 <div style={{ padding: '10px' }}>
                   <h2 style={{ color: '#FFD700', margin: '0 0 15px 0' }}>Secure your Payment</h2>
                   
-                  {/* 🟢 Botón de pago con monto real */}
                   <button 
                     onClick={handleCreateEscrow} 
                     disabled={!supabaseId || txStatus !== 'idle' || contractAmount === '0'}
