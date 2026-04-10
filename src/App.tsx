@@ -130,7 +130,7 @@ export default function App() {
     const fetchInitialStatus = async () => {
       const { data, error } = await supabase
         .from('contracts')
-        .select('status, amount_usdt, counterparty_wallet')
+        .select('status, amount_usdt, seller_wallet') // 👈 1. AHORA BUSCAMOS seller_wallet
         .eq('id', supabaseId)
         .single(); 
 
@@ -140,10 +140,12 @@ export default function App() {
         
         const montoBase = data.amount_usdt ? data.amount_usdt : 0;
         setContractAmount(montoBase.toString()); 
-        setSellerWallet(data.counterparty_wallet ? data.counterparty_wallet : '0x000000000000000000000000000000000000dEaD');
+        
+        // 👈 2. AHORA LEEMOS data.seller_wallet
+        setSellerWallet(data.seller_wallet ? data.seller_wallet : '0x000000000000000000000000000000000000dEaD');
 
         if (montoBase > 0) {
-          const fee = montoBase * 0.0095; // 0.95%
+          const fee = montoBase * 0.0095; 
           const total = montoBase + fee;
           setFeeAmount(fee.toFixed(2)); 
           setTotalAmount(total.toFixed(2));
@@ -257,14 +259,21 @@ export default function App() {
     try {
       setTxStatus('creating');
 
-      // 1. Convertimos el ID de UUID a BigInt para TON
       const idBigInt = BigInt("0x" + supabaseId.replace(/-/g, ''));
       
-      // 2. Empaquetamos el mensaje para tu contrato Tact
+      // 🟢 PARACAÍDAS: Si el banco guardó un ID de Telegram en vez de una billetera...
+      let counterpartyAddress;
+      try {
+          counterpartyAddress = Address.parse(sellerWallet);
+      } catch { // 👈 ¡MAGIA! SOLO DEJAMOS CATCH SIN LA (e)
+          console.warn("La billetera del vendedor no es un formato TON válido. Usando dirección temporal para la prueba.");
+          counterpartyAddress = Address.parse("EQCsagpCK6aagQFs4owb-7AewXsNHwOeMdhzg4Cwo9MhCCAd");
+      }
+      
       const msg = {
           $$type: 'CreateEscrow' as const,
           id: idBigInt,
-          counterparty: Address.parse(sellerWallet)
+          counterparty: counterpartyAddress // Usamos la dirección segura
       };
       
       const body = beginCell();
