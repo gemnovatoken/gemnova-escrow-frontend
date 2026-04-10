@@ -101,7 +101,7 @@ export default function App() {
   // 🟢 ESTADO PARA ESCUCHAR AL RADAR
   const [dbStatus, setDbStatus] = useState<string>('PENDING');
 
-  // 🟢 CAMBIO 1: ESTADOS PARA GUARDAR EL DINERO Y LA BILLETERA REAL
+  // 🟢 ESTADOS PARA GUARDAR EL DINERO Y LA BILLETERA REAL
   const [contractAmount, setContractAmount] = useState<string>('0');
   const [sellerWallet, setSellerWallet] = useState<string>('');
 
@@ -116,7 +116,6 @@ export default function App() {
     const fetchInitialStatus = async () => {
       const { data, error } = await supabase
         .from('contracts')
-        // 🟢 CAMBIO 2: Ahora pedimos también el monto y la billetera de Supabase
         .select('status, amount_usdt, counterparty_wallet')
         .eq('id', supabaseId)
         .single(); 
@@ -125,9 +124,9 @@ export default function App() {
         console.log("Estado y datos iniciales encontrados:", data);
         setDbStatus(data.status); 
         
-        // 🟢 CAMBIO 3: Guardamos los datos en la memoria de React
-        setContractAmount(data.amount_usdt.toString()); 
-        setSellerWallet(data.counterparty_wallet);
+        // 🟢 SALVAVIDAS: Si el monto o la billetera están vacíos en BD, usamos valores de seguridad
+        setContractAmount(data.amount_usdt ? data.amount_usdt.toString() : '0'); 
+        setSellerWallet(data.counterparty_wallet ? data.counterparty_wallet : '0x000000000000000000000000000000000000dEaD');
       }
     };
 
@@ -171,7 +170,6 @@ export default function App() {
       return;
     }
 
-    // 🟢 CAMBIO 4: Seguro anti-errores. Evita que paguen si la BD no cargó
     if (!sellerWallet || contractAmount === '0') {
       alert("Error: No se pudieron cargar los datos del contrato. Espera un segundo y vuelve a intentar.");
       return;
@@ -194,7 +192,6 @@ export default function App() {
       const tokenDecimals = await usdtContract.decimals();
       const idParaContrato = formatearIdParaBlockchain(supabaseId);
       
-      // 🟢 CAMBIO 5: ADIÓS A LOS DATOS FALSOS. ¡USAMOS LOS REALES!
       const contraparteReal = sellerWallet; 
       const cantidadReal = parseUnits(contractAmount, tokenDecimals); 
       
@@ -205,7 +202,6 @@ export default function App() {
       await txApprove.wait();
 
       setTxStatus('creating');
-      // 🟢 Pasamos las variables reales al Smart Contract
       const txCreate = await escrowContract.crearEscrow(idParaContrato, contraparteReal, cantidadReal);
       await txCreate.wait();
       
@@ -298,7 +294,7 @@ export default function App() {
     <div style={{ textAlign: 'center', marginTop: '50px', fontFamily: 'sans-serif', backgroundColor: '#1a1a1a', color: 'white', minHeight: '100vh', padding: '20px' }}>
       <h1 style={{ color: '#FFD700', fontSize: '3rem', margin: '0' }}>🛡️ Escrow Multichain</h1>
       
-      {/* 🟢 CAMBIO 6: DISEÑO PARA MOSTRAR EL MONTO REAL */}
+      {/* 🟢 DISEÑO PARA MOSTRAR EL MONTO REAL */}
       {supabaseId ? (
          <div style={{ display: 'inline-flex', flexDirection: 'column', gap: '10px', alignItems: 'center', marginBottom: '20px' }}>
            <h3 style={{ margin: 0, color: '#00ffcc', backgroundColor: '#003322', padding: '10px 15px', borderRadius: '10px', display: 'inline-block' }}>
@@ -422,7 +418,7 @@ export default function App() {
                 <div style={{ padding: '10px' }}>
                   <h2 style={{ color: '#FFD700', margin: '0 0 15px 0' }}>Secure your Payment</h2>
                   
-                  {/* 🟢 CAMBIO 7: El botón ahora muestra el monto real dinámico */}
+                  {/* 🟢 Botón de pago con monto real */}
                   <button 
                     onClick={handleCreateEscrow} 
                     disabled={!supabaseId || txStatus !== 'idle' || contractAmount === '0'}
