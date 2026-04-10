@@ -96,11 +96,14 @@ export default function App() {
     return params.get('role'); 
   });
 
-  // 🟢 Agregamos 'refunding' a los estados posibles de la transacción
   const [txStatus, setTxStatus] = useState<'idle' | 'approving' | 'creating' | 'releasing' | 'refunding' | 'success'>('idle');
   
   // 🟢 ESTADO PARA ESCUCHAR AL RADAR
   const [dbStatus, setDbStatus] = useState<string>('PENDING');
+
+  // 🟢 CAMBIO 1: ESTADOS PARA GUARDAR EL DINERO Y LA BILLETERA REAL
+  const [contractAmount, setContractAmount] = useState<string>('0');
+  const [sellerWallet, setSellerWallet] = useState<string>('');
 
   // ==========================================
   // 🟢 EL OÍDO DEL FRONTEND (CON LECTURA INICIAL)
@@ -113,13 +116,18 @@ export default function App() {
     const fetchInitialStatus = async () => {
       const { data, error } = await supabase
         .from('contracts')
-        .select('status')
+        // 🟢 CAMBIO 2: Ahora pedimos también el monto y la billetera de Supabase
+        .select('status, amount_usdt, counterparty_wallet')
         .eq('id', supabaseId)
         .single(); 
 
       if (data && !error) {
-        console.log("Estado inicial encontrado:", data.status);
+        console.log("Estado y datos iniciales encontrados:", data);
         setDbStatus(data.status); 
+        
+        // 🟢 CAMBIO 3: Guardamos los datos en la memoria de React
+        setContractAmount(data.amount_usdt.toString()); 
+        setSellerWallet(data.counterparty_wallet);
       }
     };
 
@@ -138,8 +146,6 @@ export default function App() {
         (payload) => {
           console.log('⚡ ¡El Radar actualizó la BD!', payload);
           setDbStatus(payload.new.status); 
-          
-          // 🟢 ESTA ES LA LÍNEA MÁGICA QUE DEBES AGREGAR:
           setTxStatus('idle'); 
         }
       )
@@ -165,6 +171,12 @@ export default function App() {
       return;
     }
 
+    // 🟢 CAMBIO 4: Seguro anti-errores. Evita que paguen si la BD no cargó
+    if (!sellerWallet || contractAmount === '0') {
+      alert("Error: No se pudieron cargar los datos del contrato. Espera un segundo y vuelve a intentar.");
+      return;
+    }
+
     const contractAddressForCurrentChain = ESCROW_ADDRESSES[chainId];
     
     if (!contractAddressForCurrentChain || contractAddressForCurrentChain === "") {
@@ -181,8 +193,11 @@ export default function App() {
 
       const tokenDecimals = await usdtContract.decimals();
       const idParaContrato = formatearIdParaBlockchain(supabaseId);
-      const contraparteDePrueba = "0x000000000000000000000000000000000000dEaD"; 
-      const cantidadDePrueba = parseUnits("100", tokenDecimals); 
+      
+      // 🟢 CAMBIO 5: ADIÓS A LOS DATOS FALSOS. ¡USAMOS LOS REALES!
+      const contraparteReal = sellerWallet; 
+      const cantidadReal = parseUnits(contractAmount, tokenDecimals); 
+      
       const usdtWithSigner = new Contract(usdtAddress, ERC20_ABI, signer);
       
       setTxStatus('approving');
@@ -190,7 +205,8 @@ export default function App() {
       await txApprove.wait();
 
       setTxStatus('creating');
-      const txCreate = await escrowContract.crearEscrow(idParaContrato, contraparteDePrueba, cantidadDePrueba);
+      // 🟢 Pasamos las variables reales al Smart Contract
+      const txCreate = await escrowContract.crearEscrow(idParaContrato, contraparteReal, cantidadReal);
       await txCreate.wait();
       
       setTxStatus('success');
@@ -261,7 +277,6 @@ export default function App() {
 
       setTxStatus('refunding');
       
-      // Llamamos exactamente a la función "reembolsar" de tu Smart Contract
       const txRefund = await escrowContract.reembolsar(idParaContrato);
       await txRefund.wait();
       
@@ -271,7 +286,6 @@ export default function App() {
       setTxStatus('idle');
       
       const err = error as { reason?: string; message?: string, code?: string };
-      // Mostramos un error amigable si alguien que no es el Juez intenta presionarlo
       if (err.reason?.includes("Solo el Juez") || err.message?.includes("Solo el Juez")) {
         alert("🔒 Acceso Denegado: Según las reglas del contrato, solo un Árbitro/Juez de Gem Nova puede forzar este reembolso.");
       } else {
@@ -284,10 +298,18 @@ export default function App() {
     <div style={{ textAlign: 'center', marginTop: '50px', fontFamily: 'sans-serif', backgroundColor: '#1a1a1a', color: 'white', minHeight: '100vh', padding: '20px' }}>
       <h1 style={{ color: '#FFD700', fontSize: '3rem', margin: '0' }}>🛡️ Escrow Multichain</h1>
       
+      {/* 🟢 CAMBIO 6: DISEÑO PARA MOSTRAR EL MONTO REAL */}
       {supabaseId ? (
-         <h3 style={{ color: '#00ffcc', backgroundColor: '#003322', padding: '10px', borderRadius: '10px', display: 'inline-block' }}>
-           ✅ Linked to Escrow: {supabaseId.slice(0,8)}...
-         </h3>
+         <div style={{ display: 'inline-flex', flexDirection: 'column', gap: '10px', alignItems: 'center', marginBottom: '20px' }}>
+           <h3 style={{ margin: 0, color: '#00ffcc', backgroundColor: '#003322', padding: '10px 15px', borderRadius: '10px', display: 'inline-block' }}>
+             ✅ Linked to Escrow: {supabaseId.slice(0,8)}...
+           </h3>
+           {contractAmount !== '0' && (
+             <span style={{ fontSize: '1.2rem', color: '#fff', backgroundColor: '#333', padding: '5px 15px', borderRadius: '20px', border: '1px solid #FFD700' }}>
+               Amount to Secure: <strong>${contractAmount} USDT</strong>
+             </span>
+           )}
+         </div>
       ) : (
          <h3 style={{ color: '#ff4444', backgroundColor: '#330000', padding: '10px', borderRadius: '10px', display: 'inline-block' }}>
            ❌ Test Mode: No ID provided
@@ -295,7 +317,7 @@ export default function App() {
       )}
 
       {/* 🌐 SELECTOR DE REDES */}
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', margin: '40px 0' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', margin: '0 0 40px 0' }}>
         <Web3NetworkButton /> 
         <Web3Button />
       </div>
@@ -336,7 +358,6 @@ export default function App() {
                   </div>
                 )}
 
-                {/* 🟢 NUEVA PANTALLA: REEMBOLSO CANCELADO PARA EL VENDEDOR */}
                 {dbStatus === 'REFUNDED' && (
                   <div>
                     <h3 style={{ color: '#e74c3c', margin: '0 0 10px 0' }}>🛑 Deal Cancelled</h3>
@@ -349,12 +370,11 @@ export default function App() {
           ) : (
             
             // ==========================================
-            // 👤 VISTA DEL COMPRADOR (BUYER DASHBOARD REACTIVO)
+            // 👤 VISTA DEL COMPRADOR (BUYER DASHBOARD)
             // ==========================================
             <>
               {dbStatus === 'COMPLETED' ? (
                 
-                // PANTALLA 3: YA SE LIBERÓ EL DINERO
                 <div style={{ padding: '20px', backgroundColor: '#004422', borderRadius: '10px', border: '2px dashed #00ffcc' }}>
                   <h2 style={{ color: '#00ffcc', margin: '0 0 10px 0' }}>🎉 Funds Released!</h2>
                   <p style={{ margin: '0', fontSize: '1.1rem' }}>The deal is finished and the seller has been paid.</p>
@@ -362,7 +382,6 @@ export default function App() {
 
               ) : dbStatus === 'REFUNDED' ? (
 
-                // 🟢 NUEVA PANTALLA 4: SE HIZO EL REEMBOLSO
                 <div style={{ padding: '20px', backgroundColor: '#330000', borderRadius: '10px', border: '2px dashed #ff4444' }}>
                   <h2 style={{ color: '#ff4444', margin: '0 0 10px 0' }}>🛑 Refund Complete</h2>
                   <p style={{ margin: '0', fontSize: '1.1rem' }}>The contract was cancelled and your funds have been returned to your wallet.</p>
@@ -370,13 +389,11 @@ export default function App() {
 
               ) : dbStatus === 'ACTIVE' ? (
 
-                // PANTALLA 2: EL DINERO ESTÁ ASEGURADO, TOCA LIBERARLO O REEMBOLSAR
                 <div style={{ border: '1px solid #2ecc71', padding: '20px', borderRadius: '10px', backgroundColor: '#002211' }}>
                   <h2 style={{ color: '#2ecc71', margin: '0 0 10px 0' }}>✅ Vault Secured!</h2>
                   <p style={{ marginBottom: '20px', fontSize: '1.05rem' }}>Your funds are safely locked. Once you receive your product or service, click below to release the payment to the seller.</p>
                   
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                    {/* BOTÓN VERDE PRINCIPAL: LIBERAR */}
                     <button 
                       onClick={handleReleaseFunds} 
                       disabled={!supabaseId || txStatus !== 'idle'}
@@ -388,7 +405,6 @@ export default function App() {
                       {txStatus === 'success' && '✅ Done! Waiting for Radar...'}
                     </button>
 
-                    {/* 🟢 NUEVO BOTÓN ROJO SECUNDARIO: REEMBOLSO */}
                     <button 
                       onClick={handleRefundFunds} 
                       disabled={!supabaseId || txStatus !== 'idle'}
@@ -403,16 +419,18 @@ export default function App() {
 
               ) : (
 
-                // PANTALLA 1: EL INICIO (PENDIENTE POR PAGAR)
                 <div style={{ padding: '10px' }}>
                   <h2 style={{ color: '#FFD700', margin: '0 0 15px 0' }}>Secure your Payment</h2>
+                  
+                  {/* 🟢 CAMBIO 7: El botón ahora muestra el monto real dinámico */}
                   <button 
                     onClick={handleCreateEscrow} 
-                    disabled={!supabaseId || txStatus !== 'idle'}
+                    disabled={!supabaseId || txStatus !== 'idle' || contractAmount === '0'}
                     style={{ 
-                      padding: '15px 30px', fontSize: '1.2rem', backgroundColor: (!supabaseId || txStatus !== 'idle') ? '#555' : '#FFD700', color: (!supabaseId || txStatus !== 'idle') ? '#aaa' : 'black', border: 'none', borderRadius: '8px', cursor: (!supabaseId || txStatus !== 'idle') ? 'not-allowed' : 'pointer', fontWeight: 'bold', width: '100%'
+                      padding: '15px 30px', fontSize: '1.2rem', backgroundColor: (!supabaseId || txStatus !== 'idle' || contractAmount === '0') ? '#555' : '#FFD700', color: (!supabaseId || txStatus !== 'idle' || contractAmount === '0') ? '#aaa' : 'black', border: 'none', borderRadius: '8px', cursor: (!supabaseId || txStatus !== 'idle' || contractAmount === '0') ? 'not-allowed' : 'pointer', fontWeight: 'bold', width: '100%'
                     }}>
-                    {txStatus === 'idle' && '+ Execute Escrow Payment'}
+                    {contractAmount === '0' && '⏳ Loading Contract Data...'}
+                    {txStatus === 'idle' && contractAmount !== '0' && `+ Secure $${contractAmount} in Vault`}
                     {txStatus === 'approving' && '⏳ 1/2 Approving USDT...'}
                     {txStatus === 'creating' && '🔐 2/2 Securing in Vault...'}
                     {txStatus === 'success' && '✅ Success! Waiting for Radar...'}
