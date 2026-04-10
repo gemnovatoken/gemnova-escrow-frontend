@@ -108,13 +108,30 @@ export default function App() {
   const [dbStatus, setDbStatus] = useState<string>('PENDING');
 
   // ==========================================
-  // 🟢 CAMBIO: EL OÍDO DEL FRONTEND (SUPABASE REALTIME)
+  // 🟢 CAMBIO: EL OÍDO DEL FRONTEND (CON LECTURA INICIAL)
   // ==========================================
   useEffect(() => {
-    if (!supabaseId) return; // Si no hay ID, no escuchamos nada
+    if (!supabaseId) return; 
 
-    console.log("📡 Frontend escuchando cambios para el contrato:", supabaseId);
+    console.log("📡 Frontend conectando para el contrato:", supabaseId);
 
+    // 1. Primero leemos el estado ACTUAL de la base de datos al abrir la página
+    const fetchInitialStatus = async () => {
+      const { data, error } = await supabase
+        .from('contracts')
+        .select('status')
+        .eq('id', supabaseId)
+        .single(); // Trae solo un registro
+
+      if (data && !error) {
+        console.log("Estado inicial encontrado:", data.status);
+        setDbStatus(data.status); // Actualiza la pantalla con el estado real
+      }
+    };
+
+    fetchInitialStatus();
+
+    // 2. Luego, nos quedamos escuchando si hay CAMBIOS en el futuro
     const subscription = supabase
       .channel('contratos-channel')
       .on(
@@ -123,11 +140,11 @@ export default function App() {
           event: 'UPDATE',
           schema: 'public',
           table: 'contracts',
-          filter: `id=eq.${supabaseId}` // Solo escuchamos TU contrato
+          filter: `id=eq.${supabaseId}` 
         },
         (payload) => {
           console.log('⚡ ¡El Radar de DigitalOcean actualizó la BD!', payload);
-          setDbStatus(payload.new.status); // Actualiza la pantalla mágicamente
+          setDbStatus(payload.new.status); 
         }
       )
       .subscribe();
