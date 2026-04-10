@@ -84,7 +84,7 @@ export default function App() {
   const { isConnected, chainId } = useWeb3ModalAccount() 
   const { walletProvider } = useWeb3ModalProvider()
 
-  // 🕵️‍♂️ CAMBIO 1: CAPTURAMOS EL ID Y LA ACCIÓN
+  // 🕵️‍♂️ CAPTURAMOS EL ID Y LA ACCIÓN
   const [supabaseId] = useState<string | null>(() => {
     const params = new URLSearchParams(window.location.search);
     return params.get('id');
@@ -96,7 +96,8 @@ export default function App() {
     return params.get('role'); 
   });
 
-  const [txStatus, setTxStatus] = useState<'idle' | 'approving' | 'creating' | 'releasing' | 'success'>('idle');
+  // 🟢 CAMBIO: Agregamos 'refunding' a los estados posibles de la transacción
+  const [txStatus, setTxStatus] = useState<'idle' | 'approving' | 'creating' | 'releasing' | 'refunding' | 'success'>('idle');
   
   // 🟢 ESTADO PARA ESCUCHAR AL RADAR
   const [dbStatus, setDbStatus] = useState<string>('PENDING');
@@ -109,23 +110,21 @@ export default function App() {
 
     console.log("📡 Frontend conectando para el contrato:", supabaseId);
 
-    // 1. Primero leemos el estado ACTUAL de la base de datos al abrir la página
     const fetchInitialStatus = async () => {
       const { data, error } = await supabase
         .from('contracts')
         .select('status')
         .eq('id', supabaseId)
-        .single(); // Trae solo un registro
+        .single(); 
 
       if (data && !error) {
         console.log("Estado inicial encontrado:", data.status);
-        setDbStatus(data.status); // Actualiza la pantalla con el estado real
+        setDbStatus(data.status); 
       }
     };
 
     fetchInitialStatus();
 
-    // 2. Luego, nos quedamos escuchando si hay CAMBIOS en el futuro
     const subscription = supabase
       .channel('contratos-channel')
       .on(
@@ -238,6 +237,46 @@ export default function App() {
     }
   }
 
+  // ==========================================
+  // 🚨 FUNCIÓN 3: NUEVA FUNCIÓN DE REEMBOLSO
+  // ==========================================
+  const handleRefundFunds = async () => {
+    if (!supabaseId || !isConnected || !walletProvider || !chainId) {
+      alert("Por favor conecta tu billetera.");
+      return;
+    }
+
+    const contractAddressForCurrentChain = ESCROW_ADDRESSES[chainId];
+    if (!contractAddressForCurrentChain || contractAddressForCurrentChain === "") return;
+
+    try {
+      const provider = new BrowserProvider(walletProvider);
+      const signer = await provider.getSigner();
+      const escrowContract = new Contract(contractAddressForCurrentChain, ESCROW_ABI, signer);
+
+      const idParaContrato = formatearIdParaBlockchain(supabaseId);
+
+      setTxStatus('refunding');
+      
+      // Llamamos exactamente a la función "reembolsar" de tu Smart Contract
+      const txRefund = await escrowContract.reembolsar(idParaContrato);
+      await txRefund.wait();
+      
+      setTxStatus('success');
+    } catch (error: unknown) {
+      console.error("Error al reembolsar:", error);
+      setTxStatus('idle');
+      
+      const err = error as { reason?: string; message?: string, code?: string };
+      // Mostramos un error amigable si alguien que no es el Juez intenta presionarlo
+      if (err.reason?.includes("Solo el Juez") || err.message?.includes("Solo el Juez")) {
+        alert("🔒 Acceso Denegado: Según las reglas del contrato, solo un Árbitro/Juez de Gem Nova puede forzar este reembolso.");
+      } else {
+        alert("Error: No se pudo procesar el reembolso. " + (err.reason || err.message));
+      }
+    }
+  }
+
   return (
     <div style={{ textAlign: 'center', marginTop: '50px', fontFamily: 'sans-serif', backgroundColor: '#1a1a1a', color: 'white', minHeight: '100vh', padding: '20px' }}>
       <h1 style={{ color: '#FFD700', fontSize: '3rem', margin: '0' }}>🛡️ Escrow Multichain</h1>
@@ -293,6 +332,14 @@ export default function App() {
                     <p style={{ margin: 0, color: '#ccc' }}>The client approved your work. The funds have been sent to your wallet!</p>
                   </div>
                 )}
+
+                {/* 🟢 NUEVA PANTALLA: REEMBOLSO CANCELADO PARA EL VENDEDOR */}
+                {dbStatus === 'REFUNDED' && (
+                  <div>
+                    <h3 style={{ color: '#e74c3c', margin: '0 0 10px 0' }}>🛑 Deal Cancelled</h3>
+                    <p style={{ margin: 0, color: '#ccc' }}>The buyer has requested a refund and the escrow is now closed. Do not proceed with the work.</p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -310,23 +357,45 @@ export default function App() {
                   <p style={{ margin: '0', fontSize: '1.1rem' }}>The deal is finished and the seller has been paid.</p>
                 </div>
 
+              ) : dbStatus === 'REFUNDED' ? (
+
+                // 🟢 NUEVA PANTALLA 4: SE HIZO EL REEMBOLSO
+                <div style={{ padding: '20px', backgroundColor: '#330000', borderRadius: '10px', border: '2px dashed #ff4444' }}>
+                  <h2 style={{ color: '#ff4444', margin: '0 0 10px 0' }}>🛑 Refund Complete</h2>
+                  <p style={{ margin: '0', fontSize: '1.1rem' }}>The contract was cancelled and your funds have been returned to your wallet.</p>
+                </div>
+
               ) : dbStatus === 'ACTIVE' ? (
 
-                // PANTALLA 2: EL DINERO ESTÁ ASEGURADO, TOCA LIBERARLO
+                // PANTALLA 2: EL DINERO ESTÁ ASEGURADO, TOCA LIBERARLO O REEMBOLSAR
                 <div style={{ border: '1px solid #2ecc71', padding: '20px', borderRadius: '10px', backgroundColor: '#002211' }}>
                   <h2 style={{ color: '#2ecc71', margin: '0 0 10px 0' }}>✅ Vault Secured!</h2>
                   <p style={{ marginBottom: '20px', fontSize: '1.05rem' }}>Your funds are safely locked. Once you receive your product or service, click below to release the payment to the seller.</p>
                   
-                  <button 
-                    onClick={handleReleaseFunds} 
-                    disabled={!supabaseId || txStatus !== 'idle'}
-                    style={{ 
-                      padding: '15px 30px', fontSize: '1.2rem', backgroundColor: (!supabaseId || txStatus !== 'idle') ? '#555' : '#2ecc71', color: 'white', border: 'none', borderRadius: '8px', cursor: (!supabaseId || txStatus !== 'idle') ? 'not-allowed' : 'pointer', fontWeight: 'bold', width: '100%'
-                    }}>
-                    {txStatus === 'idle' && '🔓 Confirm Delivery & Release'}
-                    {txStatus === 'releasing' && '⌛ Processing Release...'}
-                    {txStatus === 'success' && '✅ Done! Waiting for Radar...'}
-                  </button>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                    {/* BOTÓN VERDE PRINCIPAL: LIBERAR */}
+                    <button 
+                      onClick={handleReleaseFunds} 
+                      disabled={!supabaseId || txStatus !== 'idle'}
+                      style={{ 
+                        padding: '15px 30px', fontSize: '1.2rem', backgroundColor: (!supabaseId || txStatus !== 'idle') ? '#555' : '#2ecc71', color: 'white', border: 'none', borderRadius: '8px', cursor: (!supabaseId || txStatus !== 'idle') ? 'not-allowed' : 'pointer', fontWeight: 'bold', width: '100%'
+                      }}>
+                      {txStatus === 'idle' && '🔓 Confirm Delivery & Release'}
+                      {txStatus === 'releasing' && '⌛ Processing Release...'}
+                      {txStatus === 'success' && '✅ Done! Waiting for Radar...'}
+                    </button>
+
+                    {/* 🟢 NUEVO BOTÓN ROJO SECUNDARIO: REEMBOLSO */}
+                    <button 
+                      onClick={handleRefundFunds} 
+                      disabled={!supabaseId || txStatus !== 'idle'}
+                      style={{ 
+                        padding: '10px 20px', fontSize: '1rem', backgroundColor: 'transparent', color: (!supabaseId || txStatus !== 'idle') ? '#777' : '#ff4444', border: (!supabaseId || txStatus !== 'idle') ? '1px solid #777' : '1px solid #ff4444', borderRadius: '8px', cursor: (!supabaseId || txStatus !== 'idle') ? 'not-allowed' : 'pointer', fontWeight: 'bold', width: '100%'
+                      }}>
+                      {txStatus === 'idle' && '🚨 Request Refund / Dispute'}
+                      {txStatus === 'refunding' && '⌛ Processing Refund...'}
+                    </button>
+                  </div>
                 </div>
 
               ) : (
