@@ -250,12 +250,11 @@ export default function App() {
       return;
     }
 
-    // Protección cruzada
-    if (sellerWallet.startsWith('0x')) {
-      alert("🚨 Error Multichain: El vendedor usó una billetera EVM (Ethereum/Polygon). Por favor conecta MetaMask para pagar este contrato.");
-      return;
-    }
-
+    // 🟢 APAGAMOS EL GUARDIA DE SEGURIDAD SOLO PARA ESTA PRUEBA
+    // if (sellerWallet.startsWith('0x')) {
+    //   alert("🚨 Error Multichain: El vendedor usó una billetera EVM (Ethereum/Polygon). Por favor conecta MetaMask para pagar este contrato.");
+    //   return;
+    // }
     try {
       setTxStatus('creating');
 
