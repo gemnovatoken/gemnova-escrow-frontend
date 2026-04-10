@@ -1,7 +1,7 @@
 import { createWeb3Modal, defaultConfig, useWeb3ModalAccount, useWeb3ModalProvider } from '@web3modal/ethers/react'
 import { BrowserProvider, Contract, parseUnits, MaxUint256 } from 'ethers' 
-import { useState, useEffect } from 'react' // 🟢 CAMBIO: Agregamos useEffect
-import { createClient } from '@supabase/supabase-js' // 🟢 CAMBIO: Importamos Supabase
+import { useState, useEffect } from 'react' 
+import { createClient } from '@supabase/supabase-js' 
 import { ESCROW_ADDRESSES, ESCROW_ABI } from './contractConfig'
 
 // ==========================================
@@ -94,6 +94,12 @@ export default function App() {
   const [action] = useState<string | null>(() => {
     const params = new URLSearchParams(window.location.search);
     return params.get('action'); 
+  });
+
+  // 🟢 NUEVO CAMBIO: CAPTURAMOS EL ROL DEL USUARIO
+  const [role] = useState<string | null>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('role'); 
   });
 
   const [txStatus, setTxStatus] = useState<'idle' | 'approving' | 'creating' | 'releasing' | 'success'>('idle');
@@ -227,11 +233,11 @@ export default function App() {
       
       {supabaseId ? (
          <h3 style={{ color: '#00ffcc', backgroundColor: '#003322', padding: '10px', borderRadius: '10px', display: 'inline-block' }}>
-           ✅ Vinculado a Escrow: {supabaseId.slice(0,8)}...
+           ✅ Linked to Escrow: {supabaseId.slice(0,8)}...
          </h3>
       ) : (
          <h3 style={{ color: '#ff4444', backgroundColor: '#330000', padding: '10px', borderRadius: '10px', display: 'inline-block' }}>
-           ❌ Modo Prueba: No hay ID en la URL
+           ❌ Test Mode: No ID provided
          </h3>
       )}
 
@@ -244,56 +250,101 @@ export default function App() {
       {isConnected && (
         <div style={{ backgroundColor: '#2a2a2a', padding: '30px', borderRadius: '15px', maxWidth: '600px', margin: '0 auto', border: '1px solid #FFD700' }}>
           
-          {txStatus === 'success' ? (
-            <div style={{ padding: '20px', backgroundColor: '#004422', borderRadius: '10px', border: '2px dashed #00ffcc' }}>
-              <h2 style={{ color: '#00ffcc', margin: '0 0 10px 0' }}>
-                {action === 'release' ? '🎉 Funds Released!' : '🎉 Vault Secured!'}
-              </h2>
-              <p style={{ margin: '0', fontSize: '1.1rem' }}>
-                {action === 'release' ? 'The deal is finished and the seller has been paid.' : 'Your funds are safely locked in the smart contract.'}
+          {/* 🟢 NUEVO: LÓGICA DE VISTAS DEPENDIENDO DEL ROL */}
+          {role === 'seller' ? (
+            
+            // ==========================================
+            // 👨‍💻 VISTA DEL VENDEDOR (SELLER DASHBOARD)
+            // ==========================================
+            <div style={{ padding: '20px', backgroundColor: '#001a33', borderRadius: '10px', border: '2px solid #3498db' }}>
+              <h2 style={{ color: '#3498db', margin: '0 0 15px 0' }}>👨‍💻 Seller Dashboard</h2>
+              <p style={{ fontSize: '1.1rem', marginBottom: '20px' }}>
+                Monitor the status of your payment here. Do not start working until the funds are secured.
               </p>
 
-              {/* 🟢 CAMBIO: MONITOR EN INGLÉS PROFESIONAL */}
-              <div style={{ marginTop: '20px', padding: '10px', backgroundColor: '#111', borderRadius: '8px', border: '1px solid #333' }}>
-                <p style={{ margin: 0, fontSize: '0.9rem', color: '#aaa' }}>
-                  Database Status: {' '}
-                  {dbStatus === 'PENDING' && <span style={{ color: '#FFD700', fontWeight: 'bold' }}>⏳ Awaiting Blockchain Confirmation...</span>}
-                  {dbStatus === 'ACTIVE' && <span style={{ color: '#2ecc71', fontWeight: 'bold' }}>✅ Smart Contract Secured</span>}
-                  {dbStatus === 'COMPLETED' && <span style={{ color: '#3498db', fontWeight: 'bold' }}>✅ Payment Released & Recorded</span>}
-                </p>
-              </div>
+              <div style={{ padding: '15px', backgroundColor: '#111', borderRadius: '8px', border: '1px solid #333' }}>
+                {dbStatus === 'PENDING' && (
+                  <div>
+                    <h3 style={{ color: '#FFD700', margin: '0 0 10px 0' }}>⏳ Awaiting Deposit</h3>
+                    <p style={{ margin: 0, color: '#aaa' }}>The client has not locked the funds yet. Please wait.</p>
+                  </div>
+                )}
+                
+                {dbStatus === 'ACTIVE' && (
+                  <div>
+                    <h3 style={{ color: '#2ecc71', margin: '0 0 10px 0' }}>✅ Funds Secured!</h3>
+                    <p style={{ margin: 0, color: '#ccc' }}>The smart contract has verified the deposit. <strong>You are safe to deliver your work.</strong></p>
+                  </div>
+                )}
 
+                {dbStatus === 'COMPLETED' && (
+                  <div>
+                    <h3 style={{ color: '#9b59b6', margin: '0 0 10px 0' }}>🎉 Payment Released</h3>
+                    <p style={{ margin: 0, color: '#ccc' }}>The client approved your work. The funds have been sent to your wallet!</p>
+                  </div>
+                )}
+              </div>
             </div>
+
           ) : (
+            
+            // ==========================================
+            // 👤 VISTA DEL COMPRADOR (BUYER - LO QUE YA TENÍAS)
+            // ==========================================
             <>
-              {action === 'release' ? (
-                // 🟢 BOTÓN DE LIBERAR FONDOS
-                <div style={{ border: '1px solid #2ecc71', padding: '15px', borderRadius: '10px' }}>
-                  <h3 style={{ color: '#2ecc71', marginTop: 0 }}>Final Step</h3>
-                  <button 
-                    onClick={handleReleaseFunds} 
-                    disabled={!supabaseId || txStatus !== 'idle'}
-                    style={{ 
-                      padding: '15px 30px', fontSize: '1.2rem', backgroundColor: (!supabaseId || txStatus !== 'idle') ? '#555' : '#2ecc71', color: 'white', border: 'none', borderRadius: '8px', cursor: (!supabaseId || txStatus !== 'idle') ? 'not-allowed' : 'pointer', fontWeight: 'bold', width: '100%'
-                    }}>
-                    {txStatus === 'idle' && '🔓 Confirm Delivery & Release'}
-                    {txStatus === 'releasing' && '⌛ Processing Release...'}
-                  </button>
+              {txStatus === 'success' ? (
+                <div style={{ padding: '20px', backgroundColor: '#004422', borderRadius: '10px', border: '2px dashed #00ffcc' }}>
+                  <h2 style={{ color: '#00ffcc', margin: '0 0 10px 0' }}>
+                    {action === 'release' ? '🎉 Funds Released!' : '🎉 Vault Secured!'}
+                  </h2>
+                  <p style={{ margin: '0', fontSize: '1.1rem' }}>
+                    {action === 'release' ? 'The deal is finished and the seller has been paid.' : 'Your funds are safely locked in the smart contract.'}
+                  </p>
+
+                  {/* 🟢 MONITOR EN INGLÉS PROFESIONAL */}
+                  <div style={{ marginTop: '20px', padding: '10px', backgroundColor: '#111', borderRadius: '8px', border: '1px solid #333' }}>
+                    <p style={{ margin: 0, fontSize: '0.9rem', color: '#aaa' }}>
+                      Database Status: {' '}
+                      {dbStatus === 'PENDING' && <span style={{ color: '#FFD700', fontWeight: 'bold' }}>⏳ Awaiting Blockchain Confirmation...</span>}
+                      {dbStatus === 'ACTIVE' && <span style={{ color: '#2ecc71', fontWeight: 'bold' }}>✅ Smart Contract Secured</span>}
+                      {dbStatus === 'COMPLETED' && <span style={{ color: '#3498db', fontWeight: 'bold' }}>✅ Payment Released & Recorded</span>}
+                    </p>
+                  </div>
+
                 </div>
               ) : (
-                // 🟡 BOTÓN DE PAGAR (Original)
-                <button 
-                  onClick={handleCreateEscrow} 
-                  disabled={!supabaseId || txStatus !== 'idle'}
-                  style={{ 
-                    padding: '15px 30px', fontSize: '1.2rem', backgroundColor: (!supabaseId || txStatus !== 'idle') ? '#555' : '#FFD700', color: (!supabaseId || txStatus !== 'idle') ? '#aaa' : 'black', border: 'none', borderRadius: '8px', cursor: (!supabaseId || txStatus !== 'idle') ? 'not-allowed' : 'pointer', fontWeight: 'bold', width: '100%'
-                  }}>
-                  {txStatus === 'idle' && '+ Execute Escrow Payment'}
-                  {txStatus === 'approving' && '⏳ 1/2 Approving USDT...'}
-                  {txStatus === 'creating' && '🔐 2/2 Securing in Vault...'}
-                </button>
+                <>
+                  {action === 'release' ? (
+                    // 🟢 BOTÓN DE LIBERAR FONDOS
+                    <div style={{ border: '1px solid #2ecc71', padding: '15px', borderRadius: '10px' }}>
+                      <h3 style={{ color: '#2ecc71', marginTop: 0 }}>Final Step</h3>
+                      <button 
+                        onClick={handleReleaseFunds} 
+                        disabled={!supabaseId || txStatus !== 'idle'}
+                        style={{ 
+                          padding: '15px 30px', fontSize: '1.2rem', backgroundColor: (!supabaseId || txStatus !== 'idle') ? '#555' : '#2ecc71', color: 'white', border: 'none', borderRadius: '8px', cursor: (!supabaseId || txStatus !== 'idle') ? 'not-allowed' : 'pointer', fontWeight: 'bold', width: '100%'
+                        }}>
+                        {txStatus === 'idle' && '🔓 Confirm Delivery & Release'}
+                        {txStatus === 'releasing' && '⌛ Processing Release...'}
+                      </button>
+                    </div>
+                  ) : (
+                    // 🟡 BOTÓN DE PAGAR (Original)
+                    <button 
+                      onClick={handleCreateEscrow} 
+                      disabled={!supabaseId || txStatus !== 'idle'}
+                      style={{ 
+                        padding: '15px 30px', fontSize: '1.2rem', backgroundColor: (!supabaseId || txStatus !== 'idle') ? '#555' : '#FFD700', color: (!supabaseId || txStatus !== 'idle') ? '#aaa' : 'black', border: 'none', borderRadius: '8px', cursor: (!supabaseId || txStatus !== 'idle') ? 'not-allowed' : 'pointer', fontWeight: 'bold', width: '100%'
+                      }}>
+                      {txStatus === 'idle' && '+ Execute Escrow Payment'}
+                      {txStatus === 'approving' && '⏳ 1/2 Approving USDT...'}
+                      {txStatus === 'creating' && '🔐 2/2 Securing in Vault...'}
+                    </button>
+                  )}
+                </>
               )}
             </>
+            
           )}
 
         </div>
