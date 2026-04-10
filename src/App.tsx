@@ -253,13 +253,13 @@ export default function App() {
                 {action === 'release' ? 'The deal is finished and the seller has been paid.' : 'Your funds are safely locked in the smart contract.'}
               </p>
 
-              {/* 🟢 CAMBIO: MONITOR DE RADAR EN TIEMPO REAL */}
+              {/* 🟢 CAMBIO: MONITOR EN INGLÉS PROFESIONAL */}
               <div style={{ marginTop: '20px', padding: '10px', backgroundColor: '#111', borderRadius: '8px', border: '1px solid #333' }}>
                 <p style={{ margin: 0, fontSize: '0.9rem', color: '#aaa' }}>
-                  Estado de la Base de Datos: {' '}
-                  {dbStatus === 'PENDING' && <span style={{ color: '#FFD700', fontWeight: 'bold' }}>⏳ Esperando al Radar...</span>}
-                  {dbStatus === 'ACTIVE' && <span style={{ color: '#2ecc71', fontWeight: 'bold' }}>✅ Confirmado por el Radar</span>}
-                  {dbStatus === 'COMPLETED' && <span style={{ color: '#3498db', fontWeight: 'bold' }}>✅ Pago Completado y Registrado</span>}
+                  Database Status: {' '}
+                  {dbStatus === 'PENDING' && <span style={{ color: '#FFD700', fontWeight: 'bold' }}>⏳ Awaiting Blockchain Confirmation...</span>}
+                  {dbStatus === 'ACTIVE' && <span style={{ color: '#2ecc71', fontWeight: 'bold' }}>✅ Smart Contract Secured</span>}
+                  {dbStatus === 'COMPLETED' && <span style={{ color: '#3498db', fontWeight: 'bold' }}>✅ Payment Released & Recorded</span>}
                 </p>
               </div>
 
