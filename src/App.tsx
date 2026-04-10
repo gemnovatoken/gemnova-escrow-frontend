@@ -5,7 +5,7 @@ import { createClient } from '@supabase/supabase-js'
 import { ESCROW_ADDRESSES, ESCROW_ABI } from './contractConfig'
 
 // ==========================================
-// 🟢 CAMBIO: INICIALIZAMOS SUPABASE FRONTEND
+// 🟢 INICIALIZAMOS SUPABASE FRONTEND
 // ==========================================
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'Pega_aqui_tu_URL_de_Supabase';
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'Pega_aqui_tu_Anon_Key';
@@ -96,7 +96,7 @@ export default function App() {
     return params.get('role'); 
   });
 
-  // 🟢 CAMBIO: Agregamos 'refunding' a los estados posibles de la transacción
+  // 🟢 Agregamos 'refunding' a los estados posibles de la transacción
   const [txStatus, setTxStatus] = useState<'idle' | 'approving' | 'creating' | 'releasing' | 'refunding' | 'success'>('idle');
   
   // 🟢 ESTADO PARA ESCUCHAR AL RADAR
@@ -136,7 +136,7 @@ export default function App() {
           filter: `id=eq.${supabaseId}` 
         },
         (payload) => {
-          console.log('⚡ ¡El Radar de DigitalOcean actualizó la BD!', payload);
+          console.log('⚡ ¡El Radar actualizó la BD!', payload);
           setDbStatus(payload.new.status); 
         }
       )
@@ -165,7 +165,7 @@ export default function App() {
     const contractAddressForCurrentChain = ESCROW_ADDRESSES[chainId];
     
     if (!contractAddressForCurrentChain || contractAddressForCurrentChain === "") {
-      alert("🚧 Bóveda en construcción en esta red. Por favor, selecciona otra red en el menú.");
+      alert("🚧 Bóveda en construcción en esta red.");
       return;
     }
 
