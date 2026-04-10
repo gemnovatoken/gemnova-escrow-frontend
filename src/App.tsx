@@ -3,6 +3,7 @@ import { BrowserProvider, Contract, parseUnits, MaxUint256 } from 'ethers'
 import { useState, useEffect } from 'react' 
 import { createClient } from '@supabase/supabase-js' 
 import { ESCROW_ADDRESSES, ESCROW_ABI } from './contractConfig'
+import { TonConnectButton } from '@tonconnect/ui-react';
 
 // ==========================================
 // 🟢 INICIALIZAMOS SUPABASE FRONTEND
@@ -336,11 +337,20 @@ export default function App() {
          </h3>
       )}
 
-      {/* 🌐 SELECTOR DE REDES */}
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', margin: '0 0 40px 0' }}>
-        <Web3NetworkButton /> 
-        <Web3Button />
-      </div>
+      {/* 🌐 SELECTOR DE REDES MULTICHAIN */}
+   <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', gap: '15px', margin: '0 0 40px 0' }}>
+     <div style={{ display: 'flex', gap: '10px', padding: '10px', backgroundColor: '#222', borderRadius: '15px' }}>
+         <span style={{color: '#888', alignSelf: 'center', fontSize: '0.9rem', marginRight: '5px'}}>EVM:</span>
+         <Web3NetworkButton /> 
+         <Web3Button />
+     </div>
+
+     {/* 🟢 Botón nativo de TON */}
+     <div style={{ display: 'flex', gap: '10px', padding: '10px', backgroundColor: '#0088cc22', borderRadius: '15px', border: '1px solid #0088cc55' }}>
+         <span style={{color: '#0088cc', alignSelf: 'center', fontSize: '0.9rem', marginRight: '5px'}}>TON:</span>
+         <TonConnectButton />
+     </div>
+   </div>
 
       {isConnected && (
         <div style={{ backgroundColor: '#2a2a2a', padding: '30px', borderRadius: '15px', maxWidth: '600px', margin: '0 auto', border: '1px solid #FFD700' }}>

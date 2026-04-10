@@ -11,7 +11,8 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.102.1",
-    "@web3modal/ethers": "^4.2.2",
+    "@tonconnect/ui-react": "^2.4.4",
+    "@web3modal/ethers": "^4.1.11",
     "ethers": "^6.16.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
