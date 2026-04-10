@@ -105,6 +105,10 @@ export default function App() {
   const [contractAmount, setContractAmount] = useState<string>('0');
   const [sellerWallet, setSellerWallet] = useState<string>('');
 
+  // 🟢 CAMBIO 8.1: ESTADOS PARA GUARDAR LOS CALCULOS DE COMISIÓN (0.95%)
+  const [feeAmount, setFeeAmount] = useState<string>('0');
+  const [totalAmount, setTotalAmount] = useState<string>('0');
+
   // ==========================================
   // 🟢 EL OÍDO DEL FRONTEND (CON LECTURA INICIAL)
   // ==========================================
@@ -124,8 +128,18 @@ export default function App() {
         console.log("Estado y datos iniciales encontrados:", data);
         setDbStatus(data.status); 
         
-        setContractAmount(data.amount_usdt ? data.amount_usdt.toString() : '0'); 
+        // 🟢 SALVAVIDAS: Si el monto o la billetera están vacíos en BD, usamos valores de seguridad
+        const montoBase = data.amount_usdt ? data.amount_usdt : 0;
+        setContractAmount(montoBase.toString()); 
         setSellerWallet(data.counterparty_wallet ? data.counterparty_wallet : '0x000000000000000000000000000000000000dEaD');
+
+        // 🟢 CAMBIO 8.2: CALCULAMOS LA COMISIÓN Y EL TOTAL AL CARGAR LA PÁGINA
+        if (montoBase > 0) {
+          const fee = montoBase * 0.0095; // 0.95%
+          const total = montoBase + fee;
+          setFeeAmount(fee.toFixed(2)); // Guardamos redondeado a 2 decimales
+          setTotalAmount(total.toFixed(2));
+        }
       }
     };
 
@@ -192,11 +206,14 @@ export default function App() {
       const idParaContrato = formatearIdParaBlockchain(supabaseId);
       
       const contraparteReal = sellerWallet; 
+      // 🟢 OJO: Le pasamos la CANTIDAD REAL (Base) a tu Smart Contract. 
+      // Tu Smart Contract en Solidity es quien hace la matemática oficial y cobra el Total.
       const cantidadReal = parseUnits(contractAmount, tokenDecimals); 
       
       const usdtWithSigner = new Contract(usdtAddress, ERC20_ABI, signer);
       
       setTxStatus('approving');
+      // 🟢 OJO 2: Como tu SC cobrará el Total (Base + Fee), tenemos que darle permiso a USDT para gastar el MaxUint256 (Infinito), o al menos el 'Total'. Usamos Max para no fallar.
       const txApprove = await usdtWithSigner.approve(contractAddressForCurrentChain, MaxUint256); 
       await txApprove.wait();
 
@@ -305,16 +322,13 @@ export default function App() {
     <div style={{ textAlign: 'center', marginTop: '50px', fontFamily: 'sans-serif', backgroundColor: '#1a1a1a', color: 'white', minHeight: '100vh', padding: '20px' }}>
       <h1 style={{ color: '#FFD700', fontSize: '3rem', margin: '0' }}>🛡️ Escrow Multichain</h1>
       
+      {/* 🟢 DISEÑO PARA MOSTRAR EL MONTO REAL */}
       {supabaseId ? (
          <div style={{ display: 'inline-flex', flexDirection: 'column', gap: '10px', alignItems: 'center', marginBottom: '20px' }}>
            <h3 style={{ margin: 0, color: '#00ffcc', backgroundColor: '#003322', padding: '10px 15px', borderRadius: '10px', display: 'inline-block' }}>
              ✅ Linked to Escrow: {supabaseId.slice(0,8)}...
            </h3>
-           {contractAmount !== '0' && (
-             <span style={{ fontSize: '1.2rem', color: '#fff', backgroundColor: '#333', padding: '5px 15px', borderRadius: '20px', border: '1px solid #FFD700' }}>
-               Amount to Secure: <strong>${contractAmount} USDT</strong>
-             </span>
-           )}
+           {/* Se quitó el badge del monto de aquí arriba para mostrarlo más detallado abajo */}
          </div>
       ) : (
          <h3 style={{ color: '#ff4444', backgroundColor: '#330000', padding: '10px', borderRadius: '10px', display: 'inline-block' }}>
@@ -427,7 +441,30 @@ export default function App() {
 
                 <div style={{ padding: '10px' }}>
                   <h2 style={{ color: '#FFD700', margin: '0 0 15px 0' }}>Secure your Payment</h2>
+
+                  {/* 🟢 CAMBIO 8.3: PANEL DE RESUMEN DE ORDEN (CARRITO) */}
+                  {contractAmount !== '0' && (
+                    <div style={{ backgroundColor: '#111', padding: '20px', borderRadius: '10px', border: '1px solid #333', marginBottom: '20px', textAlign: 'left' }}>
+                      <h4 style={{ margin: '0 0 15px 0', color: '#ccc', borderBottom: '1px solid #333', paddingBottom: '10px' }}>Order Summary</h4>
+                      
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                        <span style={{ color: '#888' }}>Escrow Amount:</span>
+                        <span style={{ color: '#fff', fontWeight: 'bold' }}>${contractAmount} USDT</span>
+                      </div>
+                      
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
+                        <span style={{ color: '#888' }}>Platform Fee (0.95%):</span>
+                        <span style={{ color: '#FFD700' }}>+ ${feeAmount} USDT</span>
+                      </div>
+                      
+                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '15px', borderTop: '1px dashed #444' }}>
+                        <span style={{ color: '#fff', fontSize: '1.2rem', fontWeight: 'bold' }}>Total to Pay:</span>
+                        <span style={{ color: '#2ecc71', fontSize: '1.2rem', fontWeight: 'bold' }}>${totalAmount} USDT</span>
+                      </div>
+                    </div>
+                  )}
                   
+                  {/* 🟢 El botón ahora muestra el Total Final a cobrar */}
                   <button 
                     onClick={handleCreateEscrow} 
                     disabled={!supabaseId || txStatus !== 'idle' || contractAmount === '0'}
@@ -435,7 +472,7 @@ export default function App() {
                       padding: '15px 30px', fontSize: '1.2rem', backgroundColor: (!supabaseId || txStatus !== 'idle' || contractAmount === '0') ? '#555' : '#FFD700', color: (!supabaseId || txStatus !== 'idle' || contractAmount === '0') ? '#aaa' : 'black', border: 'none', borderRadius: '8px', cursor: (!supabaseId || txStatus !== 'idle' || contractAmount === '0') ? 'not-allowed' : 'pointer', fontWeight: 'bold', width: '100%'
                     }}>
                     {contractAmount === '0' && '⏳ Loading Contract Data...'}
-                    {txStatus === 'idle' && contractAmount !== '0' && `+ Secure $${contractAmount} in Vault`}
+                    {txStatus === 'idle' && contractAmount !== '0' && `+ Secure $${totalAmount} USDT`}
                     {txStatus === 'approving' && '⏳ 1/2 Approving USDT...'}
                     {txStatus === 'creating' && '🔐 2/2 Securing in Vault...'}
                     {txStatus === 'success' && '✅ Success! Waiting for Radar...'}
