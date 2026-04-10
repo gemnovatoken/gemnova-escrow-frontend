@@ -7,8 +7,7 @@ import { ESCROW_ADDRESSES, ESCROW_ABI } from './contractConfig'
 // 🟢 CAMBIO 1: AGREGAMOS LOS HOOKS DE TONCONNECT Y @TON/CORE
 import { TonConnectButton, useTonConnectUI, useTonAddress } from '@tonconnect/ui-react';
 import { Address, toNano, beginCell } from '@ton/core';
-import { storeCreateEscrow } from './tact_GemNovaEscrow'; // <-- El traductor de Tact
-
+import { storeCreateEscrow, storeReleaseFunds, storeRefund } from './tact_GemNovaEscrow';
 // ==========================================
 // 🟢 INICIALIZAMOS SUPABASE FRONTEND
 // ==========================================
@@ -303,10 +302,39 @@ export default function App() {
   }
 
   // ==========================================
-  // 🔓 FUNCIÓN 2: NUEVA FUNCIÓN PARA SACAR EL DINERO (Solo EVM por ahora)
+  // 🔓 FUNCIÓN 2: NUEVA FUNCIÓN PARA SACAR EL DINERO 
   // ==========================================
   const handleReleaseFunds = async () => {
     if (!supabaseId) return;
+    // 🟢 LÓGICA PARA TON (Tonkeeper)
+    if (userTONAddress) {
+      try {
+        setTxStatus('releasing');
+        const idBigInt = BigInt("0x" + supabaseId.replace(/-/g, ''));
+        
+        // Armamos el mensaje de liberación
+        const msg = { $$type: 'ReleaseFunds' as const, id: idBigInt };
+        const body = beginCell();
+        storeReleaseFunds(msg)(body);
+        const payloadBoc = body.endCell().toBoc().toString('base64');
+
+        const transaction = {
+            validUntil: Math.floor(Date.now() / 1000) + 360,
+            messages: [{
+                address: "EQCsagpCK6aagQFs4owb-7AewXsNHwOeMdhzg4Cwo9MhCCAd", // TU CONTRATO
+                amount: toNano('0.02').toString(), // Pagamos 0.02 TON por el gas de la ejecución
+                payload: payloadBoc
+            }]
+        };
+
+        await tonConnectUI.sendTransaction(transaction);
+        setTxStatus('success');
+      } catch (error) {
+        console.error("Error TON Release:", error);
+        setTxStatus('idle');
+      }
+      return; // Terminamos aquí si usó TON
+    }
     if (!isConnected || !walletProvider || !chainId) {
       alert("Por favor conecta tu billetera.");
       return;
@@ -344,6 +372,37 @@ export default function App() {
   // 🚨 FUNCIÓN 3: NUEVA FUNCIÓN DE REEMBOLSO (Solo EVM por ahora)
   // ==========================================
   const handleRefundFunds = async () => {
+    
+    // 🟢 LÓGICA PARA TON (Tonkeeper)
+    if (userTONAddress) {
+      try {
+        setTxStatus('refunding');
+        const idBigInt = BigInt("0x" + supabaseId.replace(/-/g, ''));
+        
+        // Armamos el mensaje de reembolso
+        const msg = { $$type: 'Refund' as const, id: idBigInt };
+        const body = beginCell();
+        storeRefund(msg)(body);
+        const payloadBoc = body.endCell().toBoc().toString('base64');
+
+        const transaction = {
+            validUntil: Math.floor(Date.now() / 1000) + 360,
+            messages: [{
+                address: "EQCsagpCK6aagQFs4owb-7AewXsNHwOeMdhzg4Cwo9MhCCAd", // TU CONTRATO
+                amount: toNano('0.02').toString(), // Pagamos 0.02 TON por el gas
+                payload: payloadBoc
+            }]
+        };
+
+        await tonConnectUI.sendTransaction(transaction);
+        setTxStatus('success');
+      } catch (error) {
+        console.error("Error TON Refund:", error);
+        setTxStatus('idle');
+      }
+      return; // Terminamos aquí si usó TON
+    }
+
     if (!supabaseId || !isConnected || !walletProvider || !chainId) {
       alert("Por favor conecta tu billetera.");
       return;
