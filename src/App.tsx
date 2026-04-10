@@ -3,7 +3,11 @@ import { BrowserProvider, Contract, parseUnits, MaxUint256 } from 'ethers'
 import { useState, useEffect } from 'react' 
 import { createClient } from '@supabase/supabase-js' 
 import { ESCROW_ADDRESSES, ESCROW_ABI } from './contractConfig'
-import { TonConnectButton } from '@tonconnect/ui-react';
+
+// 🟢 CAMBIO 1: AGREGAMOS LOS HOOKS DE TONCONNECT Y @TON/CORE
+import { TonConnectButton, useTonConnectUI, useTonAddress } from '@tonconnect/ui-react';
+import { Address, toNano, beginCell } from '@ton/core';
+import { storeCreateEscrow } from './tact_GemNovaEscrow'; // <-- El traductor de Tact
 
 // ==========================================
 // 🟢 INICIALIZAMOS SUPABASE FRONTEND
@@ -82,8 +86,13 @@ export default function App() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const Web3NetworkButton = 'w3m-network-button' as any;
 
+  // ESTADOS DE EVM (MetaMask)
   const { isConnected, chainId } = useWeb3ModalAccount() 
   const { walletProvider } = useWeb3ModalProvider()
+
+  // 🟢 CAMBIO 2: ESTADOS DE TON (Tonkeeper)
+  const [tonConnectUI] = useTonConnectUI();
+  const userTONAddress = useTonAddress();
 
   // 🕵️‍♂️ CAPTURAMOS EL ID Y LA ACCIÓN
   const [supabaseId] = useState<string | null>(() => {
@@ -106,7 +115,7 @@ export default function App() {
   const [contractAmount, setContractAmount] = useState<string>('0');
   const [sellerWallet, setSellerWallet] = useState<string>('');
 
-  // 🟢 CAMBIO 8.1: ESTADOS PARA GUARDAR LOS CALCULOS DE COMISIÓN (0.95%)
+  // 🟢 ESTADOS PARA GUARDAR LOS CALCULOS DE COMISIÓN (0.95%)
   const [feeAmount, setFeeAmount] = useState<string>('0');
   const [totalAmount, setTotalAmount] = useState<string>('0');
 
@@ -129,16 +138,14 @@ export default function App() {
         console.log("Estado y datos iniciales encontrados:", data);
         setDbStatus(data.status); 
         
-        // 🟢 SALVAVIDAS: Si el monto o la billetera están vacíos en BD, usamos valores de seguridad
         const montoBase = data.amount_usdt ? data.amount_usdt : 0;
         setContractAmount(montoBase.toString()); 
         setSellerWallet(data.counterparty_wallet ? data.counterparty_wallet : '0x000000000000000000000000000000000000dEaD');
 
-        // 🟢 CAMBIO 8.2: CALCULAMOS LA COMISIÓN Y EL TOTAL AL CARGAR LA PÁGINA
         if (montoBase > 0) {
           const fee = montoBase * 0.0095; // 0.95%
           const total = montoBase + fee;
-          setFeeAmount(fee.toFixed(2)); // Guardamos redondeado a 2 decimales
+          setFeeAmount(fee.toFixed(2)); 
           setTotalAmount(total.toFixed(2));
         }
       }
@@ -175,12 +182,18 @@ export default function App() {
   }
 
   // ==========================================
-  // 🛡️ FUNCIÓN 1: METER EL DINERO 
+  // 🛡️ FUNCIÓN 1: METER EL DINERO (EVM / METAMASK)
   // ==========================================
   const handleCreateEscrow = async () => {
     if (!supabaseId) return;
     if (!isConnected || !walletProvider || !chainId) {
-      alert("Por favor conecta tu billetera.");
+      alert("Por favor conecta tu billetera de Ethereum/Polygon.");
+      return;
+    }
+
+    // 🟢 CAMBIO 3: Protección cruzada. Evitamos que paguen con EVM si el vendedor usó billetera TON
+    if (sellerWallet && !sellerWallet.startsWith('0x')) {
+      alert("🚨 Error Multichain: El vendedor usó una billetera de TON. Por favor, desconecta MetaMask y conecta Tonkeeper para pagar este contrato.");
       return;
     }
 
@@ -190,7 +203,6 @@ export default function App() {
     }
 
     const contractAddressForCurrentChain = ESCROW_ADDRESSES[chainId];
-    
     if (!contractAddressForCurrentChain || contractAddressForCurrentChain === "") {
       alert("🚧 Bóveda en construcción en esta red.");
       return;
@@ -207,14 +219,10 @@ export default function App() {
       const idParaContrato = formatearIdParaBlockchain(supabaseId);
       
       const contraparteReal = sellerWallet; 
-      // 🟢 OJO: Le pasamos la CANTIDAD REAL (Base) a tu Smart Contract. 
-      // Tu Smart Contract en Solidity es quien hace la matemática oficial y cobra el Total.
       const cantidadReal = parseUnits(contractAmount, tokenDecimals); 
-      
       const usdtWithSigner = new Contract(usdtAddress, ERC20_ABI, signer);
       
       setTxStatus('approving');
-      // 🟢 OJO 2: Como tu SC cobrará el Total (Base + Fee), tenemos que darle permiso a USDT para gastar el MaxUint256 (Infinito), o al menos el 'Total'. Usamos Max para no fallar.
       const txApprove = await usdtWithSigner.approve(contractAddressForCurrentChain, MaxUint256); 
       await txApprove.wait();
 
@@ -223,7 +231,6 @@ export default function App() {
       await txCreate.wait();
       
       setTxStatus('success');
-
     } catch (error) {
       console.error("Error en el protocolo:", error);
       setTxStatus('idle');
@@ -232,7 +239,63 @@ export default function App() {
   }
 
   // ==========================================
-  // 🔓 FUNCIÓN 2: NUEVA FUNCIÓN PARA SACAR EL DINERO
+  // 💎 FUNCIÓN NUEVA: PAGO EN TON (TONKEEPER)
+  // ==========================================
+  const handleCreateTonEscrow = async () => {
+    if (!supabaseId) return;
+    if (!userTONAddress) {
+      alert("Por favor conecta tu billetera TON.");
+      return;
+    }
+
+    // Protección cruzada
+    if (sellerWallet.startsWith('0x')) {
+      alert("🚨 Error Multichain: El vendedor usó una billetera EVM (Ethereum/Polygon). Por favor conecta MetaMask para pagar este contrato.");
+      return;
+    }
+
+    try {
+      setTxStatus('creating');
+
+      // 1. Convertimos el ID de UUID a BigInt para TON
+      const idBigInt = BigInt("0x" + supabaseId.replace(/-/g, ''));
+      
+      // 2. Empaquetamos el mensaje para tu contrato Tact
+      const msg = {
+          $$type: 'CreateEscrow' as const,
+          id: idBigInt,
+          counterparty: Address.parse(sellerWallet)
+      };
+      
+      const body = beginCell();
+      storeCreateEscrow(msg)(body);
+      const payloadBoc = body.endCell().toBoc().toString('base64');
+
+      // 3. Preparamos la transacción hacia TU DIRECCIÓN MAESTRA
+      const transaction = {
+          validUntil: Math.floor(Date.now() / 1000) + 360,
+          messages: [
+              {
+                  address: "EQCsagpCK6aagQFs4owb-7AewXsNHwOeMdhzg4Cwo9MhCCAd", // TU CONTRATO
+                  amount: toNano(totalAmount).toString(), // Cobramos Total en TON (simulando valor)
+                  payload: payloadBoc
+              }
+          ]
+      };
+
+      // 4. Disparamos la billetera de TON
+      await tonConnectUI.sendTransaction(transaction);
+      setTxStatus('success');
+
+    } catch (error) {
+      console.error("Error TON:", error);
+      setTxStatus('idle');
+      alert("La transacción fue cancelada o falló.");
+    }
+  }
+
+  // ==========================================
+  // 🔓 FUNCIÓN 2: NUEVA FUNCIÓN PARA SACAR EL DINERO (Solo EVM por ahora)
   // ==========================================
   const handleReleaseFunds = async () => {
     if (!supabaseId) return;
@@ -270,7 +333,7 @@ export default function App() {
   }
 
   // ==========================================
-  // 🚨 FUNCIÓN 3: NUEVA FUNCIÓN DE REEMBOLSO
+  // 🚨 FUNCIÓN 3: NUEVA FUNCIÓN DE REEMBOLSO (Solo EVM por ahora)
   // ==========================================
   const handleRefundFunds = async () => {
     if (!supabaseId || !isConnected || !walletProvider || !chainId) {
@@ -311,7 +374,6 @@ export default function App() {
   // 🟢 ANTI-ATASCOS (RACE CONDITION FIX)
   // ==========================================
   useEffect(() => {
-    // Si MetaMask y la DB ya confirmaron, limpia el estado de los botones tras 1.5s
     if (txStatus === 'success' && dbStatus !== 'PENDING') {
       const timer = setTimeout(() => setTxStatus('idle'), 1500);
       return () => clearTimeout(timer);
@@ -323,13 +385,11 @@ export default function App() {
     <div style={{ textAlign: 'center', marginTop: '50px', fontFamily: 'sans-serif', backgroundColor: '#1a1a1a', color: 'white', minHeight: '100vh', padding: '20px' }}>
       <h1 style={{ color: '#FFD700', fontSize: '3rem', margin: '0' }}>🛡️ Escrow Multichain</h1>
       
-      {/* 🟢 DISEÑO PARA MOSTRAR EL MONTO REAL */}
       {supabaseId ? (
          <div style={{ display: 'inline-flex', flexDirection: 'column', gap: '10px', alignItems: 'center', marginBottom: '20px' }}>
            <h3 style={{ margin: 0, color: '#00ffcc', backgroundColor: '#003322', padding: '10px 15px', borderRadius: '10px', display: 'inline-block' }}>
              ✅ Linked to Escrow: {supabaseId.slice(0,8)}...
            </h3>
-           {/* Se quitó el badge del monto de aquí arriba para mostrarlo más detallado abajo */}
          </div>
       ) : (
          <h3 style={{ color: '#ff4444', backgroundColor: '#330000', padding: '10px', borderRadius: '10px', display: 'inline-block' }}>
@@ -338,21 +398,22 @@ export default function App() {
       )}
 
       {/* 🌐 SELECTOR DE REDES MULTICHAIN */}
-   <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', gap: '15px', margin: '0 0 40px 0' }}>
-     <div style={{ display: 'flex', gap: '10px', padding: '10px', backgroundColor: '#222', borderRadius: '15px' }}>
-         <span style={{color: '#888', alignSelf: 'center', fontSize: '0.9rem', marginRight: '5px'}}>EVM:</span>
-         <Web3NetworkButton /> 
-         <Web3Button />
-     </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', gap: '15px', margin: '0 0 40px 0' }}>
+        <div style={{ display: 'flex', gap: '10px', padding: '10px', backgroundColor: '#222', borderRadius: '15px', border: isConnected ? '1px solid #FFD700' : '1px solid transparent' }}>
+            <span style={{color: '#888', alignSelf: 'center', fontSize: '0.9rem', marginRight: '5px'}}>EVM:</span>
+            <Web3NetworkButton /> 
+            <Web3Button />
+        </div>
 
-     {/* 🟢 Botón nativo de TON */}
-     <div style={{ display: 'flex', gap: '10px', padding: '10px', backgroundColor: '#0088cc22', borderRadius: '15px', border: '1px solid #0088cc55' }}>
-         <span style={{color: '#0088cc', alignSelf: 'center', fontSize: '0.9rem', marginRight: '5px'}}>TON:</span>
-         <TonConnectButton />
-     </div>
-   </div>
+        {/* 🟢 Botón nativo de TON */}
+        <div style={{ display: 'flex', gap: '10px', padding: '10px', backgroundColor: '#0088cc22', borderRadius: '15px', border: userTONAddress ? '1px solid #0088cc' : '1px solid #0088cc55' }}>
+            <span style={{color: '#0088cc', alignSelf: 'center', fontSize: '0.9rem', marginRight: '5px'}}>TON:</span>
+            <TonConnectButton />
+        </div>
+      </div>
 
-      {isConnected && (
+      {/* 🟢 CAMBIO 4: Mostrar si ALGUNA de las dos billeteras está conectada */}
+      {(isConnected || userTONAddress) && (
         <div style={{ backgroundColor: '#2a2a2a', padding: '30px', borderRadius: '15px', maxWidth: '600px', margin: '0 auto', border: '1px solid #FFD700' }}>
           
           {role === 'seller' ? (
@@ -452,41 +513,48 @@ export default function App() {
                 <div style={{ padding: '10px' }}>
                   <h2 style={{ color: '#FFD700', margin: '0 0 15px 0' }}>Secure your Payment</h2>
 
-                  {/* 🟢 CAMBIO 8.3: PANEL DE RESUMEN DE ORDEN (CARRITO) */}
+                  {/* 🟢 PANEL DE RESUMEN DE ORDEN */}
                   {contractAmount !== '0' && (
                     <div style={{ backgroundColor: '#111', padding: '20px', borderRadius: '10px', border: '1px solid #333', marginBottom: '20px', textAlign: 'left' }}>
                       <h4 style={{ margin: '0 0 15px 0', color: '#ccc', borderBottom: '1px solid #333', paddingBottom: '10px' }}>Order Summary</h4>
                       
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
                         <span style={{ color: '#888' }}>Escrow Amount:</span>
-                        <span style={{ color: '#fff', fontWeight: 'bold' }}>${contractAmount} USDT</span>
+                        <span style={{ color: '#fff', fontWeight: 'bold' }}>${contractAmount} USDT / TON</span>
                       </div>
                       
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
                         <span style={{ color: '#888' }}>Platform Fee (0.95%):</span>
-                        <span style={{ color: '#FFD700' }}>+ ${feeAmount} USDT</span>
+                        <span style={{ color: '#FFD700' }}>+ ${feeAmount}</span>
                       </div>
                       
                       <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '15px', borderTop: '1px dashed #444' }}>
                         <span style={{ color: '#fff', fontSize: '1.2rem', fontWeight: 'bold' }}>Total to Pay:</span>
-                        <span style={{ color: '#2ecc71', fontSize: '1.2rem', fontWeight: 'bold' }}>${totalAmount} USDT</span>
+                        <span style={{ color: '#2ecc71', fontSize: '1.2rem', fontWeight: 'bold' }}>${totalAmount}</span>
                       </div>
                     </div>
                   )}
                   
-                  {/* 🟢 El botón ahora muestra el Total Final a cobrar */}
-                  <button 
-                    onClick={handleCreateEscrow} 
-                    disabled={!supabaseId || txStatus !== 'idle' || contractAmount === '0'}
-                    style={{ 
-                      padding: '15px 30px', fontSize: '1.2rem', backgroundColor: (!supabaseId || txStatus !== 'idle' || contractAmount === '0') ? '#555' : '#FFD700', color: (!supabaseId || txStatus !== 'idle' || contractAmount === '0') ? '#aaa' : 'black', border: 'none', borderRadius: '8px', cursor: (!supabaseId || txStatus !== 'idle' || contractAmount === '0') ? 'not-allowed' : 'pointer', fontWeight: 'bold', width: '100%'
-                    }}>
-                    {contractAmount === '0' && '⏳ Loading Contract Data...'}
-                    {txStatus === 'idle' && contractAmount !== '0' && `+ Secure $${totalAmount} USDT`}
-                    {txStatus === 'approving' && '⏳ 1/2 Approving USDT...'}
-                    {txStatus === 'creating' && '🔐 2/2 Securing in Vault...'}
-                    {txStatus === 'success' && '✅ Success! Waiting for Radar...'}
-                  </button>
+                  {/* 🟢 CAMBIO 5: BOTONES INTELIGENTES QUE CAMBIAN SEGÚN LA WALLET */}
+                  {userTONAddress && !isConnected ? (
+                     <button 
+                      onClick={handleCreateTonEscrow} 
+                      disabled={!supabaseId || txStatus !== 'idle' || contractAmount === '0'}
+                      style={{ padding: '15px 30px', fontSize: '1.2rem', backgroundColor: '#0088cc', color: 'white', border: 'none', borderRadius: '8px', cursor: (!supabaseId || txStatus !== 'idle' || contractAmount === '0') ? 'not-allowed' : 'pointer', fontWeight: 'bold', width: '100%' }}>
+                      {txStatus === 'idle' ? `💎 Pay $${totalAmount} via TON` : '⏳ Procesando TON...'}
+                    </button>
+                  ) : (
+                    <button 
+                      onClick={handleCreateEscrow} 
+                      disabled={!supabaseId || txStatus !== 'idle' || contractAmount === '0'}
+                      style={{ padding: '15px 30px', fontSize: '1.2rem', backgroundColor: (!supabaseId || txStatus !== 'idle' || contractAmount === '0') ? '#555' : '#FFD700', color: (!supabaseId || txStatus !== 'idle' || contractAmount === '0') ? '#aaa' : 'black', border: 'none', borderRadius: '8px', cursor: (!supabaseId || txStatus !== 'idle' || contractAmount === '0') ? 'not-allowed' : 'pointer', fontWeight: 'bold', width: '100%' }}>
+                      {contractAmount === '0' && '⏳ Loading Contract Data...'}
+                      {txStatus === 'idle' && contractAmount !== '0' && `🦊 Pay $${totalAmount} via EVM`}
+                      {txStatus === 'approving' && '⏳ 1/2 Approving USDT...'}
+                      {txStatus === 'creating' && '🔐 2/2 Securing in Vault...'}
+                      {txStatus === 'success' && '✅ Success! Waiting for Radar...'}
+                    </button>
+                  )}
                 </div>
 
               )}
