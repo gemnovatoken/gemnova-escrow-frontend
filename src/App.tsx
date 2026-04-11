@@ -453,7 +453,6 @@ const [heroStats] = useState({ volume: 1450, count: 12, active: 1 });
 
   return (
     <div style={{ textAlign: 'center', marginTop: '50px', fontFamily: 'sans-serif', backgroundColor: '#1a1a1a', color: 'white', minHeight: '100vh', padding: '20px' }}>
-      <h1 style={{ color: '#FFD700', fontSize: '3rem', margin: '0' }}>🛡️ Escrow Multichain</h1>
       <h1 style={{ color: '#FFD700', fontSize: '3rem', margin: '0 0 20px 0' }}>🛡️ Escrow Multichain</h1>
       
       {/* 🎨 AQUÍ DIBUJAMOS LAS ESTADÍSTICAS DEL USUARIO */}
