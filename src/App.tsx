@@ -3,6 +3,8 @@ import { BrowserProvider, Contract, parseUnits, MaxUint256 } from 'ethers'
 import { useState, useEffect } from 'react' 
 import { createClient } from '@supabase/supabase-js' 
 import { ESCROW_ADDRESSES, ESCROW_ABI } from './contractConfig'
+// 🎨 IMPORTAMOS NUESTRO NUEVO COMPONENTE VISUAL
+import { HeroStats } from './HeroStats';
 
 // 🟢 CAMBIO 1: AGREGAMOS LOS HOOKS DE TONCONNECT Y @TON/CORE
 import { TonConnectButton, useTonConnectUI, useTonAddress } from '@tonconnect/ui-react';
@@ -117,8 +119,8 @@ export default function App() {
   // 🟢 ESTADOS PARA GUARDAR LOS CALCULOS DE COMISIÓN (0.95%)
   const [feeAmount, setFeeAmount] = useState<string>('0');
   const [totalAmount, setTotalAmount] = useState<string>('0');
-  
-
+  // 🎨 ESTADO PARA LAS ESTADÍSTICAS DEL DASHBOARD (Datos de prueba)
+const [heroStats] = useState({ volume: 1450, count: 12, active: 1 });
   // ==========================================
   // 🟢 EL OÍDO DEL FRONTEND (CON LECTURA INICIAL)
   // ==========================================
@@ -452,7 +454,15 @@ export default function App() {
   return (
     <div style={{ textAlign: 'center', marginTop: '50px', fontFamily: 'sans-serif', backgroundColor: '#1a1a1a', color: 'white', minHeight: '100vh', padding: '20px' }}>
       <h1 style={{ color: '#FFD700', fontSize: '3rem', margin: '0' }}>🛡️ Escrow Multichain</h1>
+      <h1 style={{ color: '#FFD700', fontSize: '3rem', margin: '0 0 20px 0' }}>🛡️ Escrow Multichain</h1>
       
+      {/* 🎨 AQUÍ DIBUJAMOS LAS ESTADÍSTICAS DEL USUARIO */}
+      <HeroStats 
+        totalVolume={heroStats.volume} 
+        tradeCount={heroStats.count} 
+        activeVaults={heroStats.active} 
+      />
+
       {supabaseId ? (
          <div style={{ display: 'inline-flex', flexDirection: 'column', gap: '10px', alignItems: 'center', marginBottom: '20px' }}>
            <h3 style={{ margin: 0, color: '#00ffcc', backgroundColor: '#003322', padding: '10px 15px', borderRadius: '10px', display: 'inline-block' }}>
