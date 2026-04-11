@@ -372,7 +372,7 @@ export default function App() {
   // 🚨 FUNCIÓN 3: NUEVA FUNCIÓN DE REEMBOLSO (Solo EVM por ahora)
   // ==========================================
   const handleRefundFunds = async () => {
-    
+
     // 🟢 LÓGICA PARA TON (Tonkeeper)
     if (userTONAddress) {
       try {
