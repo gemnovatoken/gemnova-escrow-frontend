@@ -1,7 +1,6 @@
 // Archivo: src/HeroStats.tsx
-import type { CSSProperties } from 'react'; // 👈 ¡EL CAMBIO MÁGICO ESTÁ AQUÍ!
+import type { CSSProperties } from 'react';
 
-// 1. Lea decimos a TypeScript exactamente qué datos esperar (cero "any")
 interface HeroStatsProps {
   totalVolume: number | string;
   tradeCount: number;
@@ -21,13 +20,13 @@ export const HeroStats = ({ totalVolume, tradeCount, activeVaults }: HeroStatsPr
     }}>
       <div style={cardStyle}>
         <span style={iconStyle}>💰</span>
-        <h4 style={labelStyle}>Volumen Asegurado</h4>
+        <h4 style={labelStyle}>Secured Volume</h4>
         <p style={valueStyle}>${totalVolume} <span style={{fontSize: '0.8rem', color: '#888'}}>USDT</span></p>
       </div>
 
       <div style={cardStyle}>
         <span style={iconStyle}>🏆</span>
-        <h4 style={labelStyle}>Tratos Exitosos</h4>
+        <h4 style={labelStyle}>Successful Trades</h4>
         <p style={valueStyle}>{tradeCount}</p>
       </div>
 
@@ -37,14 +36,13 @@ export const HeroStats = ({ totalVolume, tradeCount, activeVaults }: HeroStatsPr
         boxShadow: activeVaults > 0 ? '0 0 15px rgba(0, 255, 204, 0.2)' : 'none'
       }}>
         <span style={iconStyle}>🛡️</span>
-        <h4 style={labelStyle}>Bóvedas Activas</h4>
+        <h4 style={labelStyle}>Active Vaults</h4>
         <p style={{...valueStyle, color: activeVaults > 0 ? '#00ffcc' : '#fff'}}>{activeVaults}</p>
       </div>
     </div>
   );
 };
 
-// 2. Usamos CSSProperties en lugar de "any" para los estilos
 const cardStyle: CSSProperties = {
   backgroundColor: '#111',
   padding: '20px',
