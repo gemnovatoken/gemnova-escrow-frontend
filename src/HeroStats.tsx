@@ -1,7 +1,7 @@
 // Archivo: src/HeroStats.tsx
-import { CSSProperties } from 'react';
+import type { CSSProperties } from 'react'; // 👈 ¡EL CAMBIO MÁGICO ESTÁ AQUÍ!
 
-// 1. Le decimos a TypeScript exactamente qué datos esperar (cero "any")
+// 1. Lea decimos a TypeScript exactamente qué datos esperar (cero "any")
 interface HeroStatsProps {
   totalVolume: number | string;
   tradeCount: number;

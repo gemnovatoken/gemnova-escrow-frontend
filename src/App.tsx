@@ -117,6 +117,7 @@ export default function App() {
   // 🟢 ESTADOS PARA GUARDAR LOS CALCULOS DE COMISIÓN (0.95%)
   const [feeAmount, setFeeAmount] = useState<string>('0');
   const [totalAmount, setTotalAmount] = useState<string>('0');
+  
 
   // ==========================================
   // 🟢 EL OÍDO DEL FRONTEND (CON LECTURA INICIAL)
@@ -580,14 +581,30 @@ export default function App() {
                 <div style={{ padding: '10px' }}>
                   <h2 style={{ color: '#FFD700', margin: '0 0 15px 0' }}>Secure your Payment</h2>
 
-                  {/* 🟢 PANEL DE RESUMEN DE ORDEN */}
+                  {/* 🟢 PANEL DE RESUMEN DE ORDEN (CYBER-PUNK UPGRADE) */}
                   {contractAmount !== '0' && (
-                    <div style={{ backgroundColor: '#111', padding: '20px', borderRadius: '10px', border: '1px solid #333', marginBottom: '20px', textAlign: 'left' }}>
-                      <h4 style={{ margin: '0 0 15px 0', color: '#ccc', borderBottom: '1px solid #333', paddingBottom: '10px' }}>Order Summary</h4>
+                    <div style={{
+                      backgroundColor: '#0a0a0a',
+                      padding: '25px',
+                      borderRadius: '12px',
+                      border: '1px solid #2ecc71',
+                      boxShadow: '0 0 20px rgba(46, 204, 113, 0.15)', // Brillo verde cyber-punk
+                      marginBottom: '25px',
+                      textAlign: 'left',
+                      position: 'relative',
+                      overflow: 'hidden'
+                    }}>
+                      {/* Cinta de seguridad superior */}
+                      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: 'linear-gradient(90deg, #FFD700, #2ecc71, #0088cc)' }} />
+
+                      <h4 style={{ margin: '0 0 20px 0', color: '#fff', borderBottom: '1px dashed #333', paddingBottom: '10px', display: 'flex', justifyContent: 'space-between' }}>
+                        <span>Order Summary</span>
+                        <span style={{ fontSize: '0.8rem', color: '#2ecc71', backgroundColor: '#003311', padding: '2px 8px', borderRadius: '10px' }}>Secure Connection</span>
+                      </h4>
                       
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
                         <span style={{ color: '#888' }}>Escrow Amount:</span>
-                        <span style={{ color: '#fff', fontWeight: 'bold' }}>${contractAmount} USDT / TON</span>
+                        <span style={{ color: '#fff', fontWeight: 'bold' }}>${contractAmount} <span style={{fontSize: '0.8rem', color: '#555'}}>USDT/TON</span></span>
                       </div>
                       
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
@@ -595,31 +612,38 @@ export default function App() {
                         <span style={{ color: '#FFD700' }}>+ ${feeAmount}</span>
                       </div>
                       
-                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '15px', borderTop: '1px dashed #444' }}>
-                        <span style={{ color: '#fff', fontSize: '1.2rem', fontWeight: 'bold' }}>Total to Pay:</span>
-                        <span style={{ color: '#2ecc71', fontSize: '1.2rem', fontWeight: 'bold' }}>${totalAmount}</span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '15px', borderTop: '1px dashed #444', marginBottom: '20px' }}>
+                        <span style={{ color: '#fff', fontSize: '1.2rem', fontWeight: 'bold' }}>Total to Lock:</span>
+                        <span style={{ color: '#2ecc71', fontSize: '1.4rem', fontWeight: 'bold', textShadow: '0 0 10px rgba(46,204,113,0.3)' }}>${totalAmount}</span>
+                      </div>
+
+                      {/* Sellos de Confianza */}
+                      <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', flexWrap: 'wrap', marginTop: '10px' }}>
+                        <span style={{ fontSize: '0.75rem', color: '#aaa', display: 'flex', alignItems: 'center', gap: '4px' }}>🔒 Audited Contract</span>
+                        <span style={{ fontSize: '0.75rem', color: '#aaa', display: 'flex', alignItems: 'center', gap: '4px' }}>⚡ Non-Custodial</span>
+                        <span style={{ fontSize: '0.75rem', color: '#aaa', display: 'flex', alignItems: 'center', gap: '4px' }}>🌐 Multichain</span>
                       </div>
                     </div>
                   )}
                   
-                  {/* 🟢 CAMBIO 5: BOTONES INTELIGENTES QUE CAMBIAN SEGÚN LA WALLET */}
+                  {/* 🟢 BOTONES INTELIGENTES QUE CAMBIAN SEGÚN LA WALLET */}
                   {userTONAddress && !isConnected ? (
                      <button 
                       onClick={handleCreateTonEscrow} 
                       disabled={!supabaseId || txStatus !== 'idle' || contractAmount === '0'}
-                      style={{ padding: '15px 30px', fontSize: '1.2rem', backgroundColor: '#0088cc', color: 'white', border: 'none', borderRadius: '8px', cursor: (!supabaseId || txStatus !== 'idle' || contractAmount === '0') ? 'not-allowed' : 'pointer', fontWeight: 'bold', width: '100%' }}>
-                      {txStatus === 'idle' ? `💎 Pay $${totalAmount} via TON` : '⏳ Procesando TON...'}
+                      style={{ padding: '18px 30px', fontSize: '1.2rem', background: 'linear-gradient(90deg, #0088cc, #005580)', color: 'white', border: '1px solid #00aaff', borderRadius: '8px', cursor: (!supabaseId || txStatus !== 'idle' || contractAmount === '0') ? 'not-allowed' : 'pointer', fontWeight: 'bold', width: '100%', boxShadow: '0 4px 15px rgba(0, 136, 204, 0.3)', transition: 'all 0.3s' }}>
+                      {txStatus === 'idle' ? `💎 Lock $${totalAmount} via TON` : '⏳ Encrypting & Sending...'}
                     </button>
                   ) : (
                     <button 
                       onClick={handleCreateEscrow} 
                       disabled={!supabaseId || txStatus !== 'idle' || contractAmount === '0'}
-                      style={{ padding: '15px 30px', fontSize: '1.2rem', backgroundColor: (!supabaseId || txStatus !== 'idle' || contractAmount === '0') ? '#555' : '#FFD700', color: (!supabaseId || txStatus !== 'idle' || contractAmount === '0') ? '#aaa' : 'black', border: 'none', borderRadius: '8px', cursor: (!supabaseId || txStatus !== 'idle' || contractAmount === '0') ? 'not-allowed' : 'pointer', fontWeight: 'bold', width: '100%' }}>
-                      {contractAmount === '0' && '⏳ Loading Contract Data...'}
-                      {txStatus === 'idle' && contractAmount !== '0' && `🦊 Pay $${totalAmount} via EVM`}
-                      {txStatus === 'approving' && '⏳ 1/2 Approving USDT...'}
+                      style={{ padding: '18px 30px', fontSize: '1.2rem', background: (!supabaseId || txStatus !== 'idle' || contractAmount === '0') ? '#333' : 'linear-gradient(90deg, #FFD700, #D4AF37)', color: (!supabaseId || txStatus !== 'idle' || contractAmount === '0') ? '#666' : '#000', border: (!supabaseId || txStatus !== 'idle' || contractAmount === '0') ? '1px solid #444' : '1px solid #FFF', borderRadius: '8px', cursor: (!supabaseId || txStatus !== 'idle' || contractAmount === '0') ? 'not-allowed' : 'pointer', fontWeight: 'bold', width: '100%', boxShadow: (!supabaseId || txStatus !== 'idle' || contractAmount === '0') ? 'none' : '0 4px 15px rgba(255, 215, 0, 0.3)', transition: 'all 0.3s' }}>
+                      {contractAmount === '0' && '⏳ Loading Secure Data...'}
+                      {txStatus === 'idle' && contractAmount !== '0' && `🦊 Lock $${totalAmount} via EVM`}
+                      {txStatus === 'approving' && '⏳ 1/2 Verifying Funds...'}
                       {txStatus === 'creating' && '🔐 2/2 Securing in Vault...'}
-                      {txStatus === 'success' && '✅ Success! Waiting for Radar...'}
+                      {txStatus === 'success' && '✅ Success! Radar Scanning...'}
                     </button>
                   )}
                 </div>
