@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js'
 import { ESCROW_ADDRESSES, ESCROW_ABI } from './contractConfig'
 // 🎨 IMPORTAMOS NUESTRO NUEVO COMPONENTE VISUAL
 import { HeroStats } from './HeroStats';
+import { ProgressTracker } from './ProgressTracker'; // 👈 AGREGAMOS ESTA LÍNEA
 
 // 🟢 CAMBIO 1: AGREGAMOS LOS HOOKS DE TONCONNECT Y @TON/CORE
 import { TonConnectButton, useTonConnectUI, useTonAddress } from '@tonconnect/ui-react';
@@ -493,6 +494,10 @@ const [heroStats] = useState({ volume: 1450, count: 12, active: 1 });
       {(isConnected || userTONAddress) && (
         <div style={{ backgroundColor: '#2a2a2a', padding: '30px', borderRadius: '15px', maxWidth: '600px', margin: '0 auto', border: '1px solid #FFD700' }}>
           
+    {/* 🛤️ BARRA DE PROGRESO VISUAL */}
+    <ProgressTracker status={dbStatus} />
+
+  
           {role === 'seller' ? (
             
             // ==========================================
