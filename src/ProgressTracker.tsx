@@ -41,11 +41,19 @@ export const ProgressTracker = ({ status }: ProgressTrackerProps) => {
 
       <div style={{...lineStyle, backgroundColor: getLineColor(1)}} />
 
-      {/* PASO 2: Asegurado */}
+      {/* PASO 2: Asegurado (AQUÍ ESTÁ LA MAGIA DEL RADAR) */}
       <div style={stepWrapper}>
-        <div style={{...circleStyle, borderColor: getCircleColor(2), boxShadow: stepIndex === 2 ? '0 0 10px #FFD700' : 'none'}}>
-          {stepIndex > 2 ? '✓' : '2'}
-        </div>
+        {stepIndex === 2 ? (
+          <div className="radar-container" style={{ width: '35px', height: '35px' }}>
+            <div className="radar-core">
+              2
+            </div>
+          </div>
+        ) : (
+          <div style={{...circleStyle, borderColor: getCircleColor(2), boxShadow: 'none'}}>
+            {stepIndex > 2 ? '✓' : '2'}
+          </div>
+        )}
         <span style={{...labelStyle, color: stepIndex >= 2 ? '#fff' : '#666'}}>Vault Secured</span>
       </div>
 
