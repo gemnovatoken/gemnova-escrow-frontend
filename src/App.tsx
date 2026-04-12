@@ -1,8 +1,11 @@
 import { createWeb3Modal, defaultConfig, useWeb3ModalAccount, useWeb3ModalProvider } from '@web3modal/ethers/react'
 import { BrowserProvider, Contract, parseUnits, MaxUint256 } from 'ethers' 
 import { useState, useEffect } from 'react' 
-import { createClient } from '@supabase/supabase-js' 
 import { ESCROW_ADDRESSES, ESCROW_ABI } from './contractConfig'
+
+// 🔗 IMPORTAMOS LA CONEXIÓN CENTRALIZADA (Y EL CHAT)
+import { VaultChat } from './VaultChat';
+import { supabase } from './supabaseClient';
 
 // 🎨 IMPORTAMOS NUESTROS COMPONENTES VISUALES
 import { HeroStats } from './HeroStats';
@@ -14,12 +17,6 @@ import { TonConnectButton, useTonConnectUI, useTonAddress } from '@tonconnect/ui
 import { Address, toNano, beginCell } from '@ton/core';
 import { storeCreateEscrow, storeReleaseFunds, storeRefund } from './tact_GemNovaEscrow';
 
-// ==========================================
-// 🟢 INICIALIZAMOS SUPABASE FRONTEND
-// ==========================================
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'Pega_aqui_tu_URL_de_Supabase';
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'Pega_aqui_tu_Anon_Key';
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 // 🌐 1. EL ARSENAL DE REDES (TESTNETS)
 const sepolia = {
@@ -514,13 +511,19 @@ export default function App() {
           
           {/* 🛤️ BARRA DE PROGRESO VISUAL */}
           <ProgressTracker status={dbStatus} />
+
+          {/* 💬 NUEVA BÓVEDA DE CHAT AQUÍ */}
+          <VaultChat 
+            contractId={supabaseId} 
+            currentUserWallet={userTONAddress || address || ''} 
+          />
   
           {role === 'seller' ? (
             
             // ==========================================
             // 👨‍💻 VISTA DEL VENDEDOR (SELLER DASHBOARD)
             // ==========================================
-            <div style={{ padding: '20px', backgroundColor: '#001a33', borderRadius: '10px', border: '2px solid #3498db' }}>
+            <div style={{ padding: '20px', backgroundColor: '#001a33', borderRadius: '10px', border: '2px solid #3498db', marginTop: '20px' }}>
               <h2 style={{ color: '#3498db', margin: '0 0 15px 0' }}>👨‍💻 Seller Dashboard</h2>
               <p style={{ fontSize: '1.1rem', marginBottom: '20px' }}>
                 Monitor the status of your payment here. Do not start working until the funds are secured.
@@ -565,21 +568,21 @@ export default function App() {
             <>
               {dbStatus === 'COMPLETED' ? (
                 
-                <div style={{ padding: '20px', backgroundColor: '#004422', borderRadius: '10px', border: '2px dashed #00ffcc' }}>
+                <div style={{ padding: '20px', backgroundColor: '#004422', borderRadius: '10px', border: '2px dashed #00ffcc', marginTop: '20px' }}>
                   <h2 style={{ color: '#00ffcc', margin: '0 0 10px 0' }}>🎉 Funds Released!</h2>
                   <p style={{ margin: '0', fontSize: '1.1rem' }}>The deal is finished and the seller has been paid.</p>
                 </div>
 
               ) : dbStatus === 'REFUNDED' ? (
 
-                <div style={{ padding: '20px', backgroundColor: '#330000', borderRadius: '10px', border: '2px dashed #ff4444' }}>
+                <div style={{ padding: '20px', backgroundColor: '#330000', borderRadius: '10px', border: '2px dashed #ff4444', marginTop: '20px' }}>
                   <h2 style={{ color: '#ff4444', margin: '0 0 10px 0' }}>🛑 Refund Complete</h2>
                   <p style={{ margin: '0', fontSize: '1.1rem' }}>The contract was cancelled and your funds have been returned to your wallet.</p>
                 </div>
 
               ) : dbStatus === 'ACTIVE' ? (
 
-                <div style={{ border: '1px solid #2ecc71', padding: '20px', borderRadius: '10px', backgroundColor: '#002211' }}>
+                <div style={{ border: '1px solid #2ecc71', padding: '20px', borderRadius: '10px', backgroundColor: '#002211', marginTop: '20px' }}>
                   <h2 style={{ color: '#2ecc71', margin: '0 0 10px 0' }}>✅ Vault Secured!</h2>
                   <p style={{ marginBottom: '20px', fontSize: '1.05rem' }}>Your funds are safely locked. Once you receive your product or service, click below to release the payment to the seller.</p>
                   
@@ -609,7 +612,7 @@ export default function App() {
 
               ) : (
 
-                <div style={{ padding: '10px' }}>
+                <div style={{ padding: '10px', marginTop: '20px' }}>
 
                   {/* 📊 TARJETA DE REPUTACIÓN DEL VENDEDOR (CON DATOS REALES) */}
                   {sellerWallet && <SellerStats sellerAddress={sellerWallet} stats={sellerStatsData} />}
