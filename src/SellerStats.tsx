@@ -1,21 +1,20 @@
 // Archivo: src/SellerStats.tsx
 import type { CSSProperties } from 'react';
 
+// 1. Ahora le decimos que recibirá todas estas estadísticas reales
 interface SellerStatsProps {
   sellerAddress: string;
+  stats: {
+    completionRate: number;
+    totalTrades: number;
+    disputeRatio: number;
+    disputesWon: number;
+    disputesLost: number;
+    avgTime: string;
+  };
 }
 
-export const SellerStats = ({ sellerAddress }: SellerStatsProps) => {
-  // 🟢 DATOS DE PRUEBA (Luego los conectaremos a Supabase)
-  const stats = {
-    completionRate: 98.5,
-    totalTrades: 142,
-    disputeRatio: 4.2,
-    disputesWon: 85, // 85% ganadas
-    disputesLost: 15, // 15% perdidas
-    avgTime: '14 mins'
-  };
-
+export const SellerStats = ({ sellerAddress, stats }: SellerStatsProps) => {
   const shortAddress = sellerAddress ? `${sellerAddress.slice(0,6)}...${sellerAddress.slice(-4)}` : 'Unknown';
 
   return (
@@ -30,14 +29,12 @@ export const SellerStats = ({ sellerAddress }: SellerStatsProps) => {
           </div>
         </div>
         <div style={badgeStyle}>
-          ⭐ Top Rated
+          ⭐ Verified
         </div>
       </div>
 
       {/* Cuadrícula de Estadísticas */}
       <div style={gridStyle}>
-        
-        {/* Stat 1: Completion */}
         <div style={statBoxStyle}>
           <span style={labelStyle}>Completion Rate</span>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px' }}>
@@ -46,13 +43,11 @@ export const SellerStats = ({ sellerAddress }: SellerStatsProps) => {
           </div>
         </div>
 
-        {/* Stat 2: Avg Time */}
         <div style={statBoxStyle}>
           <span style={labelStyle}>Avg. Release Time</span>
           <span style={valueStyle}>{stats.avgTime}</span>
         </div>
 
-        {/* Stat 3: Disputes (La magia que pediste) */}
         <div style={{...statBoxStyle, gridColumn: '1 / -1', borderTop: '1px dashed #333', marginTop: '5px', paddingTop: '15px'}}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
@@ -60,7 +55,6 @@ export const SellerStats = ({ sellerAddress }: SellerStatsProps) => {
               <span style={{...valueStyle, color: '#FFD700'}}>{stats.disputeRatio}%</span>
             </div>
             
-            {/* Desglose de Ganadas / Perdidas */}
             <div style={{ display: 'flex', gap: '15px', backgroundColor: '#0a0a0a', padding: '8px 15px', borderRadius: '8px', border: '1px solid #222' }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 <span style={{ color: '#2ecc71', fontWeight: 'bold', fontSize: '1.1rem' }}>{stats.disputesWon}%</span>
@@ -74,7 +68,6 @@ export const SellerStats = ({ sellerAddress }: SellerStatsProps) => {
             </div>
           </div>
         </div>
-
       </div>
     </div>
   );
