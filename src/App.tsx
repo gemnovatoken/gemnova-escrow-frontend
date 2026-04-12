@@ -481,9 +481,30 @@ export default function App() {
 
       {supabaseId ? (
          <div style={{ display: 'inline-flex', flexDirection: 'column', gap: '10px', alignItems: 'center', marginBottom: '20px' }}>
-           <h3 style={{ margin: 0, color: '#00ffcc', backgroundColor: '#003322', padding: '10px 15px', borderRadius: '10px', display: 'inline-block' }}>
+           <h3 style={{ margin: 0, color: '#00ffcc', backgroundColor: '#003322', padding: '10px 15px', borderRadius: '10px', display: 'inline-block', border: '1px solid #00ffcc' }}>
              ✅ Linked to Escrow: {supabaseId.slice(0,8)}...
            </h3>
+           
+           {/* 🔗 BOTÓN PARA COPIAR EL LINK MÁGICO */}
+           <button 
+             onClick={() => {
+               navigator.clipboard.writeText(window.location.href);
+               alert("🔗 Secure Link Copied! Send this to your counterparty.");
+             }}
+             style={{ 
+               padding: '8px 20px', 
+               backgroundColor: '#0088cc', 
+               color: 'white', 
+               border: '1px solid #00aaff', 
+               borderRadius: '8px', 
+               cursor: 'pointer', 
+               fontWeight: 'bold',
+               fontSize: '0.9rem',
+               boxShadow: '0 4px 10px rgba(0, 136, 204, 0.3)'
+             }}
+           >
+             📋 Copy Secure Link
+           </button>
          </div>
       ) : (
          <h3 style={{ color: '#ff4444', backgroundColor: '#330000', padding: '10px', borderRadius: '10px', display: 'inline-block' }}>
