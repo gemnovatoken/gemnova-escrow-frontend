@@ -3,15 +3,17 @@ import { BrowserProvider, Contract, parseUnits, MaxUint256 } from 'ethers'
 import { useState, useEffect } from 'react' 
 import { createClient } from '@supabase/supabase-js' 
 import { ESCROW_ADDRESSES, ESCROW_ABI } from './contractConfig'
-// 🎨 IMPORTAMOS NUESTRO NUEVO COMPONENTE VISUAL
-import { HeroStats } from './HeroStats';
-import { ProgressTracker } from './ProgressTracker'; // 👈 AGREGAMOS ESTA LÍNEA
-import { SellerStats } from './SellerStats'; // 👈 AQUÍ
 
-// 🟢 CAMBIO 1: AGREGAMOS LOS HOOKS DE TONCONNECT Y @TON/CORE
+// 🎨 IMPORTAMOS NUESTROS COMPONENTES VISUALES
+import { HeroStats } from './HeroStats';
+import { ProgressTracker } from './ProgressTracker'; 
+import { SellerStats } from './SellerStats'; 
+
+// 🟢 HOOKS DE TONCONNECT Y @TON/CORE
 import { TonConnectButton, useTonConnectUI, useTonAddress } from '@tonconnect/ui-react';
 import { Address, toNano, beginCell } from '@ton/core';
 import { storeCreateEscrow, storeReleaseFunds, storeRefund } from './tact_GemNovaEscrow';
+
 // ==========================================
 // 🟢 INICIALIZAMOS SUPABASE FRONTEND
 // ==========================================
@@ -90,10 +92,10 @@ export default function App() {
   const Web3NetworkButton = 'w3m-network-button' as any;
 
   // ESTADOS DE EVM (MetaMask)
-  const { isConnected, chainId } = useWeb3ModalAccount() 
+  const { isConnected, chainId, address } = useWeb3ModalAccount() 
   const { walletProvider } = useWeb3ModalProvider()
 
-  // 🟢 CAMBIO 2: ESTADOS DE TON (Tonkeeper)
+  // ESTADOS DE TON (Tonkeeper)
   const [tonConnectUI] = useTonConnectUI();
   const userTONAddress = useTonAddress();
 
@@ -103,7 +105,6 @@ export default function App() {
     return params.get('id');
   });
 
-  // 🟢 CAPTURAMOS EL ROL DEL USUARIO
   const [role] = useState<string | null>(() => {
     const params = new URLSearchParams(window.location.search);
     return params.get('role'); 
@@ -111,18 +112,18 @@ export default function App() {
 
   const [txStatus, setTxStatus] = useState<'idle' | 'approving' | 'creating' | 'releasing' | 'refunding' | 'success'>('idle');
   
-  // 🟢 ESTADO PARA ESCUCHAR AL RADAR
   const [dbStatus, setDbStatus] = useState<string>('PENDING');
-
-  // 🟢 ESTADOS PARA GUARDAR EL DINERO Y LA BILLETERA REAL
   const [contractAmount, setContractAmount] = useState<string>('0');
   const [sellerWallet, setSellerWallet] = useState<string>('');
-
-  // 🟢 ESTADOS PARA GUARDAR LOS CALCULOS DE COMISIÓN (0.95%)
   const [feeAmount, setFeeAmount] = useState<string>('0');
   const [totalAmount, setTotalAmount] = useState<string>('0');
-  // 🎨 ESTADO PARA LAS ESTADÍSTICAS DEL DASHBOARD (Datos de prueba)
-const [heroStats] = useState({ volume: 1450, count: 12, active: 1 });
+
+  // 🎨 ESTADOS PARA LAS ESTADÍSTICAS REALES (Conectadas a Supabase)
+  const [heroStats, setHeroStats] = useState({ volume: 0, count: 0, active: 0 });
+  const [sellerStatsData, setSellerStatsData] = useState({
+    completionRate: 100, totalTrades: 0, disputeRatio: 0, disputesWon: 0, disputesLost: 0, avgTime: '< 24 hrs'
+  });
+
   // ==========================================
   // 🟢 EL OÍDO DEL FRONTEND (CON LECTURA INICIAL)
   // ==========================================
@@ -134,7 +135,7 @@ const [heroStats] = useState({ volume: 1450, count: 12, active: 1 });
     const fetchInitialStatus = async () => {
       const { data, error } = await supabase
         .from('contracts')
-        .select('status, amount_usdt, seller_wallet') // 👈 1. AHORA BUSCAMOS seller_wallet
+        .select('status, amount_usdt, seller_wallet')
         .eq('id', supabaseId)
         .single(); 
 
@@ -144,8 +145,6 @@ const [heroStats] = useState({ volume: 1450, count: 12, active: 1 });
         
         const montoBase = data.amount_usdt ? data.amount_usdt : 0;
         setContractAmount(montoBase.toString()); 
-        
-        // 👈 2. AHORA LEEMOS data.seller_wallet
         setSellerWallet(data.seller_wallet ? data.seller_wallet : '0x000000000000000000000000000000000000dEaD');
 
         if (montoBase > 0) {
@@ -161,14 +160,7 @@ const [heroStats] = useState({ volume: 1450, count: 12, active: 1 });
 
     const subscription = supabase
       .channel('contratos-channel')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'contracts',
-          filter: `id=eq.${supabaseId}` 
-        },
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'contracts', filter: `id=eq.${supabaseId}` },
         (payload) => {
           console.log('⚡ ¡El Radar actualizó la BD!', payload);
           setDbStatus(payload.new.status); 
@@ -181,6 +173,47 @@ const [heroStats] = useState({ volume: 1450, count: 12, active: 1 });
       supabase.removeChannel(subscription);
     };
   }, [supabaseId]);
+
+  // ==========================================
+  // 📊 CEREBRO MATEMÁTICO: OBTENER ESTADÍSTICAS REALES
+  // ==========================================
+  useEffect(() => {
+    const fetchRealStats = async () => {
+      // 1. Estadísticas del Vendedor del Contrato (SellerStats)
+      if (sellerWallet && sellerWallet !== '0x000000000000000000000000000000000000dEaD') {
+        const { data: sData } = await supabase.from('contracts').select('status').eq('seller_wallet', sellerWallet);
+        if (sData) {
+          const total = sData.length;
+          const completed = sData.filter(c => c.status === 'COMPLETED').length;
+          const refunded = sData.filter(c => c.status === 'REFUNDED').length; 
+          
+          setSellerStatsData({
+            completionRate: total > 0 ? Math.round((completed / total) * 100) : 100,
+            totalTrades: total,
+            disputeRatio: total > 0 ? Math.round((refunded / total) * 100) : 0,
+            disputesWon: 0, 
+            disputesLost: 100, 
+            avgTime: '< 24 hrs'
+          });
+        }
+      }
+
+      // 2. Mis Estadísticas Globales (HeroStats)
+      const myWallet = userTONAddress || address;
+      if (myWallet) {
+        const { data: hData } = await supabase.from('contracts').select('status, amount_usdt').eq('seller_wallet', myWallet);
+        if (hData) {
+          setHeroStats({
+            volume: hData.reduce((acc, curr) => acc + (Number(curr.amount_usdt) || 0), 0),
+            count: hData.length,
+            active: hData.filter(c => c.status === 'ACTIVE').length
+          });
+        }
+      }
+    };
+
+    fetchRealStats();
+  }, [sellerWallet, userTONAddress, address]);
 
   const formatearIdParaBlockchain = (uuid: string) => {
     const clean = uuid.replace(/-/g, ''); 
@@ -197,7 +230,6 @@ const [heroStats] = useState({ volume: 1450, count: 12, active: 1 });
       return;
     }
 
-    // 🟢 CAMBIO 3: Protección cruzada. Evitamos que paguen con EVM si el vendedor usó billetera TON
     if (sellerWallet && !sellerWallet.startsWith('0x')) {
       alert("🚨 Error Multichain: El vendedor usó una billetera de TON. Por favor, desconecta MetaMask y conecta Tonkeeper para pagar este contrato.");
       return;
@@ -254,21 +286,14 @@ const [heroStats] = useState({ volume: 1450, count: 12, active: 1 });
       return;
     }
 
-    // 🟢 APAGAMOS EL GUARDIA DE SEGURIDAD SOLO PARA ESTA PRUEBA
-    // if (sellerWallet.startsWith('0x')) {
-    //   alert("🚨 Error Multichain: El vendedor usó una billetera EVM (Ethereum/Polygon). Por favor conecta MetaMask para pagar este contrato.");
-    //   return;
-    // }
     try {
       setTxStatus('creating');
 
       const idBigInt = BigInt("0x" + supabaseId.replace(/-/g, ''));
-      
-      // 🟢 PARACAÍDAS: Si el banco guardó un ID de Telegram en vez de una billetera...
       let counterpartyAddress;
       try {
           counterpartyAddress = Address.parse(sellerWallet);
-      } catch { // 👈 ¡MAGIA! SOLO DEJAMOS CATCH SIN LA (e)
+      } catch { 
           console.warn("La billetera del vendedor no es un formato TON válido. Usando dirección temporal para la prueba.");
           counterpartyAddress = Address.parse("EQCsagpCK6aagQFs4owb-7AewXsNHwOeMdhzg4Cwo9MhCCAd");
       }
@@ -276,26 +301,24 @@ const [heroStats] = useState({ volume: 1450, count: 12, active: 1 });
       const msg = {
           $$type: 'CreateEscrow' as const,
           id: idBigInt,
-          counterparty: counterpartyAddress // Usamos la dirección segura
+          counterparty: counterpartyAddress 
       };
       
       const body = beginCell();
       storeCreateEscrow(msg)(body);
       const payloadBoc = body.endCell().toBoc().toString('base64');
 
-      // 3. Preparamos la transacción hacia TU DIRECCIÓN MAESTRA
       const transaction = {
           validUntil: Math.floor(Date.now() / 1000) + 360,
           messages: [
               {
-                  address: "EQCsagpCK6aagQFs4owb-7AewXsNHwOeMdhzg4Cwo9MhCCAd", // TU CONTRATO
-                  amount: toNano(totalAmount).toString(), // Cobramos Total en TON (simulando valor)
+                  address: "EQCsagpCK6aagQFs4owb-7AewXsNHwOeMdhzg4Cwo9MhCCAd", 
+                  amount: toNano(totalAmount).toString(), 
                   payload: payloadBoc
               }
           ]
       };
 
-      // 4. Disparamos la billetera de TON
       await tonConnectUI.sendTransaction(transaction);
       setTxStatus('success');
 
@@ -311,13 +334,11 @@ const [heroStats] = useState({ volume: 1450, count: 12, active: 1 });
   // ==========================================
   const handleReleaseFunds = async () => {
     if (!supabaseId) return;
-    // 🟢 LÓGICA PARA TON (Tonkeeper)
     if (userTONAddress) {
       try {
         setTxStatus('releasing');
         const idBigInt = BigInt("0x" + supabaseId.replace(/-/g, ''));
         
-        // Armamos el mensaje de liberación
         const msg = { $$type: 'ReleaseFunds' as const, id: idBigInt };
         const body = beginCell();
         storeReleaseFunds(msg)(body);
@@ -326,8 +347,8 @@ const [heroStats] = useState({ volume: 1450, count: 12, active: 1 });
         const transaction = {
             validUntil: Math.floor(Date.now() / 1000) + 360,
             messages: [{
-                address: "EQCsagpCK6aagQFs4owb-7AewXsNHwOeMdhzg4Cwo9MhCCAd", // TU CONTRATO
-                amount: toNano('0.02').toString(), // Pagamos 0.02 TON por el gas de la ejecución
+                address: "EQCsagpCK6aagQFs4owb-7AewXsNHwOeMdhzg4Cwo9MhCCAd", 
+                amount: toNano('0.02').toString(), 
                 payload: payloadBoc
             }]
         };
@@ -338,7 +359,7 @@ const [heroStats] = useState({ volume: 1450, count: 12, active: 1 });
         console.error("Error TON Release:", error);
         setTxStatus('idle');
       }
-      return; // Terminamos aquí si usó TON
+      return; 
     }
     if (!isConnected || !walletProvider || !chainId) {
       alert("Por favor conecta tu billetera.");
@@ -374,17 +395,14 @@ const [heroStats] = useState({ volume: 1450, count: 12, active: 1 });
   }
 
   // ==========================================
-  // 🚨 FUNCIÓN 3: NUEVA FUNCIÓN DE REEMBOLSO (Solo EVM por ahora)
+  // 🚨 FUNCIÓN 3: NUEVA FUNCIÓN DE REEMBOLSO 
   // ==========================================
   const handleRefundFunds = async () => {
-
-    // 🟢 LÓGICA PARA TON (Tonkeeper)
     if (userTONAddress) {
       try {
         setTxStatus('refunding');
         const idBigInt = BigInt("0x" + supabaseId.replace(/-/g, ''));
         
-        // Armamos el mensaje de reembolso
         const msg = { $$type: 'Refund' as const, id: idBigInt };
         const body = beginCell();
         storeRefund(msg)(body);
@@ -393,8 +411,8 @@ const [heroStats] = useState({ volume: 1450, count: 12, active: 1 });
         const transaction = {
             validUntil: Math.floor(Date.now() / 1000) + 360,
             messages: [{
-                address: "EQCsagpCK6aagQFs4owb-7AewXsNHwOeMdhzg4Cwo9MhCCAd", // TU CONTRATO
-                amount: toNano('0.02').toString(), // Pagamos 0.02 TON por el gas
+                address: "EQCsagpCK6aagQFs4owb-7AewXsNHwOeMdhzg4Cwo9MhCCAd", 
+                amount: toNano('0.02').toString(), 
                 payload: payloadBoc
             }]
         };
@@ -405,7 +423,7 @@ const [heroStats] = useState({ volume: 1450, count: 12, active: 1 });
         console.error("Error TON Refund:", error);
         setTxStatus('idle');
       }
-      return; // Terminamos aquí si usó TON
+      return; 
     }
 
     if (!supabaseId || !isConnected || !walletProvider || !chainId) {
@@ -443,7 +461,7 @@ const [heroStats] = useState({ volume: 1450, count: 12, active: 1 });
   }
 
   // ==========================================
-  // 🟢 ANTI-ATASCOS (RACE CONDITION FIX)
+  // 🟢 ANTI-ATASCOS 
   // ==========================================
   useEffect(() => {
     if (txStatus === 'success' && dbStatus !== 'PENDING') {
@@ -491,13 +509,11 @@ const [heroStats] = useState({ volume: 1450, count: 12, active: 1 });
         </div>
       </div>
 
-      {/* 🟢 CAMBIO 4: Mostrar si ALGUNA de las dos billeteras está conectada */}
       {(isConnected || userTONAddress) && (
         <div style={{ backgroundColor: '#2a2a2a', padding: '30px', borderRadius: '15px', maxWidth: '600px', margin: '0 auto', border: '1px solid #FFD700' }}>
           
-    {/* 🛤️ BARRA DE PROGRESO VISUAL */}
-    <ProgressTracker status={dbStatus} />
-
+          {/* 🛤️ BARRA DE PROGRESO VISUAL */}
+          <ProgressTracker status={dbStatus} />
   
           {role === 'seller' ? (
             
@@ -591,14 +607,15 @@ const [heroStats] = useState({ volume: 1450, count: 12, active: 1 });
                   </div>
                 </div>
 
-             ) : (
+              ) : (
 
-             <div style={{ padding: '10px' }}>
+                <div style={{ padding: '10px' }}>
 
-               {/* 📊 TARJETA DE REPUTACIÓN DEL VENDEDOR */}
-               {sellerWallet && <SellerStats sellerAddress={sellerWallet} />}
+                  {/* 📊 TARJETA DE REPUTACIÓN DEL VENDEDOR (CON DATOS REALES) */}
+                  {sellerWallet && <SellerStats sellerAddress={sellerWallet} stats={sellerStatsData} />}
 
-               <h2 style={{ color: '#FFD700', margin: '0 0 15px 0' }}>Secure your Payment</h2>
+                  <h2 style={{ color: '#FFD700', margin: '0 0 15px 0' }}>Secure your Payment</h2>
+
                   {/* 🟢 PANEL DE RESUMEN DE ORDEN (CYBER-PUNK UPGRADE) */}
                   {contractAmount !== '0' && (
                     <div style={{
@@ -606,13 +623,12 @@ const [heroStats] = useState({ volume: 1450, count: 12, active: 1 });
                       padding: '25px',
                       borderRadius: '12px',
                       border: '1px solid #2ecc71',
-                      boxShadow: '0 0 20px rgba(46, 204, 113, 0.15)', // Brillo verde cyber-punk
+                      boxShadow: '0 0 20px rgba(46, 204, 113, 0.15)', 
                       marginBottom: '25px',
                       textAlign: 'left',
                       position: 'relative',
                       overflow: 'hidden'
                     }}>
-                      {/* Cinta de seguridad superior */}
                       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: 'linear-gradient(90deg, #FFD700, #2ecc71, #0088cc)' }} />
 
                       <h4 style={{ margin: '0 0 20px 0', color: '#fff', borderBottom: '1px dashed #333', paddingBottom: '10px', display: 'flex', justifyContent: 'space-between' }}>
@@ -635,7 +651,6 @@ const [heroStats] = useState({ volume: 1450, count: 12, active: 1 });
                         <span style={{ color: '#2ecc71', fontSize: '1.4rem', fontWeight: 'bold', textShadow: '0 0 10px rgba(46,204,113,0.3)' }}>${totalAmount}</span>
                       </div>
 
-                      {/* Sellos de Confianza */}
                       <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', flexWrap: 'wrap', marginTop: '10px' }}>
                         <span style={{ fontSize: '0.75rem', color: '#aaa', display: 'flex', alignItems: 'center', gap: '4px' }}>🔒 Audited Contract</span>
                         <span style={{ fontSize: '0.75rem', color: '#aaa', display: 'flex', alignItems: 'center', gap: '4px' }}>⚡ Non-Custodial</span>
@@ -644,7 +659,6 @@ const [heroStats] = useState({ volume: 1450, count: 12, active: 1 });
                     </div>
                   )}
                   
-                  {/* 🟢 BOTONES INTELIGENTES QUE CAMBIAN SEGÚN LA WALLET */}
                   {userTONAddress && !isConnected ? (
                      <button 
                       onClick={handleCreateTonEscrow} 
