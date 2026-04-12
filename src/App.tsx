@@ -516,6 +516,7 @@ export default function App() {
           <VaultChat 
             contractId={supabaseId} 
             currentUserWallet={userTONAddress || address || ''} 
+            status={dbStatus} 
           />
   
           {role === 'seller' ? (
