@@ -6,6 +6,7 @@ import { ESCROW_ADDRESSES, ESCROW_ABI } from './contractConfig'
 // 🎨 IMPORTAMOS NUESTRO NUEVO COMPONENTE VISUAL
 import { HeroStats } from './HeroStats';
 import { ProgressTracker } from './ProgressTracker'; // 👈 AGREGAMOS ESTA LÍNEA
+import { SellerStats } from './SellerStats'; // 👈 AQUÍ
 
 // 🟢 CAMBIO 1: AGREGAMOS LOS HOOKS DE TONCONNECT Y @TON/CORE
 import { TonConnectButton, useTonConnectUI, useTonAddress } from '@tonconnect/ui-react';
@@ -590,11 +591,14 @@ const [heroStats] = useState({ volume: 1450, count: 12, active: 1 });
                   </div>
                 </div>
 
-              ) : (
+             ) : (
 
-                <div style={{ padding: '10px' }}>
-                  <h2 style={{ color: '#FFD700', margin: '0 0 15px 0' }}>Secure your Payment</h2>
+             <div style={{ padding: '10px' }}>
 
+               {/* 📊 TARJETA DE REPUTACIÓN DEL VENDEDOR */}
+               {sellerWallet && <SellerStats sellerAddress={sellerWallet} />}
+
+               <h2 style={{ color: '#FFD700', margin: '0 0 15px 0' }}>Secure your Payment</h2>
                   {/* 🟢 PANEL DE RESUMEN DE ORDEN (CYBER-PUNK UPGRADE) */}
                   {contractAmount !== '0' && (
                     <div style={{
