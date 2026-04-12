@@ -102,10 +102,6 @@ export default function App() {
     return params.get('id');
   });
 
-  const [role] = useState<string | null>(() => {
-    const params = new URLSearchParams(window.location.search);
-    return params.get('role'); 
-  });
 
   const [txStatus, setTxStatus] = useState<'idle' | 'approving' | 'creating' | 'releasing' | 'refunding' | 'success'>('idle');
   
@@ -392,9 +388,35 @@ export default function App() {
   }
 
   // ==========================================
-  // 🚨 FUNCIÓN 3: NUEVA FUNCIÓN DE REEMBOLSO 
+  // 🚨 FUNCIÓN 3: SISTEMA DE DISPUTAS Y REEMBOLSOS
   // ==========================================
   const handleRefundFunds = async () => {
+    // 1. Preguntamos la razón de la disputa
+    const reason = prompt("🚨 OPEN DISPUTE\n\nPlease explain the problem. This reason will be sent to the encrypted chat and evaluated by a Gem Nova Judge:");
+    
+    if (!reason) {
+      alert("Dispute cancelled. You must provide a reason.");
+      return; 
+    }
+
+    if (!supabaseId || (!userTONAddress && (!isConnected || !walletProvider || !chainId))) {
+      alert("Please connect your wallet first.");
+      return;
+    }
+
+    // 2. Guardamos la evidencia en el chat automáticamente
+    try {
+      const currentWallet = userTONAddress || address || 'Unknown';
+      await supabase.from('messages').insert([{
+        contract_id: supabaseId,
+        sender_wallet: currentWallet,
+        message: `🚨 OFFICIAL DISPUTE OPENED: "${reason}". \n\nAwaiting Gem Nova Judge review.`
+      }]);
+    } catch (err) {
+      console.error("Error saving dispute to chat", err);
+    }
+
+    // 3. Intentamos hacer el reembolso en la Blockchain
     if (userTONAddress) {
       try {
         setTxStatus('refunding');
@@ -423,16 +445,11 @@ export default function App() {
       return; 
     }
 
-    if (!supabaseId || !isConnected || !walletProvider || !chainId) {
-      alert("Por favor conecta tu billetera.");
-      return;
-    }
-
-    const contractAddressForCurrentChain = ESCROW_ADDRESSES[chainId];
+    const contractAddressForCurrentChain = ESCROW_ADDRESSES[chainId!];
     if (!contractAddressForCurrentChain || contractAddressForCurrentChain === "") return;
 
     try {
-      const provider = new BrowserProvider(walletProvider);
+      const provider = new BrowserProvider(walletProvider!);
       const signer = await provider.getSigner();
       const escrowContract = new Contract(contractAddressForCurrentChain, ESCROW_ABI, signer);
 
@@ -450,9 +467,9 @@ export default function App() {
       
       const err = error as { reason?: string; message?: string, code?: string };
       if (err.reason?.includes("Solo el Juez") || err.message?.includes("Solo el Juez")) {
-        alert("🔒 Acceso Denegado: Según las reglas del contrato, solo un Árbitro/Juez de Gem Nova puede forzar este reembolso.");
+        alert("✅ Dispute Registered in Chat!\n\nThe funds are frozen. A Gem Nova Judge will review the chat history and resolve the dispute shortly.");
       } else {
-        alert("Error: No se pudo procesar el reembolso. " + (err.reason || err.message));
+        alert("Error: " + (err.reason || err.message));
       }
     }
   }
@@ -540,7 +557,8 @@ export default function App() {
             status={dbStatus} 
           />
   
-          {role === 'seller' ? (
+          {/* DETECCIÓN INTELIGENTE DE ROLES */}
+          {((userTONAddress || address || '').toLowerCase() === sellerWallet.toLowerCase()) ? (
             
             // ==========================================
             // 👨‍💻 VISTA DEL VENDEDOR (SELLER DASHBOARD)
