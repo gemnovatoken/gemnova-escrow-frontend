@@ -6,6 +6,7 @@ import { ESCROW_ADDRESSES, ESCROW_ABI } from './contractConfig'
 // 🔗 IMPORTAMOS LA CONEXIÓN CENTRALIZADA (Y EL CHAT)
 import { VaultChat } from './VaultChat';
 import { supabase } from './supabaseClient';
+import AdminDashboard from './AdminDashboard'; // 👈 IMPORTACIÓN DEL PANEL DE JUEZ
 
 // 🎨 IMPORTAMOS NUESTROS COMPONENTES VISUALES
 import { HeroStats } from './HeroStats';
@@ -102,6 +103,9 @@ export default function App() {
     return params.get('id');
   });
 
+  // 🚪 PUERTA TRASERA DEL SUPER ADMIN
+  const isSuperAdmin = window.location.search.includes('boss=gemnova');
+
   const [txStatus, setTxStatus] = useState<'idle' | 'approving' | 'creating' | 'releasing' | 'refunding' | 'success'>('idle');
   
   const [dbStatus, setDbStatus] = useState<string>('PENDING');
@@ -120,11 +124,12 @@ export default function App() {
   // 🟢 EL OÍDO DEL FRONTEND (CON LECTURA INICIAL)
   // ==========================================
   useEffect(() => {
-    if (!supabaseId) return; 
+    if (!supabaseId && !isSuperAdmin) return; // Si es super admin, no necesitamos ID de contrato para cargar
 
     console.log("📡 Frontend conectando para el contrato:", supabaseId);
 
     const fetchInitialStatus = async () => {
+      if (!supabaseId) return; // Verificación adicional de seguridad
       const { data, error } = await supabase
         .from('contracts')
         .select('status, amount_usdt, seller_wallet')
@@ -150,21 +155,24 @@ export default function App() {
 
     fetchInitialStatus();
 
-    const subscription = supabase
-      .channel('contratos-channel')
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'contracts', filter: `id=eq.${supabaseId}` },
-        (payload) => {
-          console.log('⚡ ¡El Radar actualizó la BD!', payload);
-          setDbStatus(payload.new.status); 
-          setTxStatus('idle'); 
-        }
-      )
-      .subscribe();
+    // Solo nos suscribimos si hay un contrato específico
+    if (supabaseId) {
+      const subscription = supabase
+        .channel('contratos-channel')
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'contracts', filter: `id=eq.${supabaseId}` },
+          (payload) => {
+            console.log('⚡ ¡El Radar actualizó la BD!', payload);
+            setDbStatus(payload.new.status); 
+            setTxStatus('idle'); 
+          }
+        )
+        .subscribe();
 
-    return () => {
-      supabase.removeChannel(subscription);
-    };
-  }, [supabaseId]);
+      return () => {
+        supabase.removeChannel(subscription);
+      };
+    }
+  }, [supabaseId, isSuperAdmin]); // Dependencias actualizadas
 
   // ==========================================
   // 📊 CEREBRO MATEMÁTICO: OBTENER ESTADÍSTICAS REALES
@@ -447,6 +455,11 @@ export default function App() {
       return () => clearTimeout(timer);
     }
   }, [txStatus, dbStatus]);
+
+  // Si estamos en la URL del jefe, mostramos el Admin Dashboard inmediatamente
+  if (isSuperAdmin) {
+    return <AdminDashboard />;
+  }
 
   // 🧠 VARIABLE CLAVE PARA DETERMINAR EL ROL DEL USUARIO
   const isSeller = (userTONAddress || address || '').toLowerCase() === sellerWallet.toLowerCase();
