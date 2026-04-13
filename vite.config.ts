@@ -6,10 +6,5 @@ export default defineConfig({
   plugins: [
     react(),
     nodePolyfills(),
-  ],
-  define: {
-    // 🔥 La forma CORRECTA y estricta de inyectarlo para Vercel
-    'process.env': JSON.stringify({ NODE_ENV: 'production' }),
-    global: 'globalThis',
-  }
+  ]
 })
