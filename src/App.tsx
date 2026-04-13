@@ -7,6 +7,7 @@ import { ESCROW_ADDRESSES, ESCROW_ABI } from './contractConfig'
 import { VaultChat } from './VaultChat';
 import { supabase } from './supabaseClient';
 import AdminDashboard from './AdminDashboard'; // 👈 IMPORTACIÓN DEL PANEL DE JUEZ
+import Terms from './Terms'; // 👈 🔥 IMPORTAMOS TU ARCHIVO DE TÉRMINOS AQUÍ
 
 // 🎨 IMPORTAMOS NUESTROS COMPONENTES VISUALES
 import { HeroStats } from './HeroStats';
@@ -83,6 +84,9 @@ const ERC20_ABI = [
 ];
 
 export default function App() {
+
+  // 🔥 1. VARIABLE DE ESTADO PARA LOS TÉRMINOS
+  const [showTerms, setShowTerms] = useState(false);
   
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const Web3Button = 'w3m-button' as any;
@@ -120,16 +124,18 @@ export default function App() {
     completionRate: 100, totalTrades: 0, disputeRatio: 0, disputesWon: 0, disputesLost: 0, avgTime: '< 24 hrs'
   });
 
+
+  
   // ==========================================
   // 🟢 EL OÍDO DEL FRONTEND (CON LECTURA INICIAL)
   // ==========================================
   useEffect(() => {
-    if (!supabaseId && !isSuperAdmin) return; // Si es super admin, no necesitamos ID de contrato para cargar
+    if (!supabaseId && !isSuperAdmin) return; 
 
     console.log("📡 Frontend conectando para el contrato:", supabaseId);
 
     const fetchInitialStatus = async () => {
-      if (!supabaseId) return; // Verificación adicional de seguridad
+      if (!supabaseId) return; 
       const { data, error } = await supabase
         .from('contracts')
         .select('status, amount_usdt, seller_wallet')
@@ -155,7 +161,6 @@ export default function App() {
 
     fetchInitialStatus();
 
-    // Solo nos suscribimos si hay un contrato específico
     if (supabaseId) {
       const subscription = supabase
         .channel('contratos-channel')
@@ -172,7 +177,7 @@ export default function App() {
         supabase.removeChannel(subscription);
       };
     }
-  }, [supabaseId, isSuperAdmin]); // Dependencias actualizadas
+  }, [supabaseId, isSuperAdmin]); 
 
   // ==========================================
   // 📊 CEREBRO MATEMÁTICO: OBTENER ESTADÍSTICAS REALES
@@ -461,9 +466,24 @@ export default function App() {
     return <AdminDashboard />;
   }
 
-  // 🧠 VARIABLE CLAVE PARA DETERMINAR EL ROL DEL USUARIO
   const isSeller = (userTONAddress || address || '').toLowerCase() === sellerWallet.toLowerCase();
 
+  // 🔥 2. SI EL USUARIO HIZO CLIC EN TÉRMINOS, MOSTRAMOS LA PANTALLA COMPLETA LEGAL
+  if (showTerms) {
+    return (
+      <div style={{ backgroundColor: '#000', minHeight: '100vh', padding: '20px', position: 'relative' }}>
+        <button 
+          onClick={() => setShowTerms(false)}
+          style={{ position: 'fixed', top: '20px', right: '20px', padding: '10px 20px', backgroundColor: '#333', color: '#FFF', border: '1px solid #555', borderRadius: '8px', cursor: 'pointer', zIndex: 50 }}
+        >
+          ❌ Close Terms
+        </button>
+        <Terms />
+      </div>
+    );
+  }
+
+  // 🛡️ 3. SI NO, MOSTRAMOS LA BÓVEDA NORMAL
   return (
     <div style={{ textAlign: 'center', marginTop: '50px', fontFamily: 'sans-serif', backgroundColor: '#1a1a1a', color: 'white', minHeight: '100vh', padding: '20px' }}>
       <h1 style={{ color: '#FFD700', fontSize: '3rem', margin: '0 0 20px 0' }}>🛡️ Escrow Multichain</h1>
@@ -633,6 +653,17 @@ export default function App() {
 
         </div>
       )}
+
+      {/* 🔥 4. AQUÍ ESTÁ EL BOTÓN QUE ABRE LOS TÉRMINOS */}
+      <div style={{ marginTop: '50px', paddingBottom: '20px' }}>
+        <button 
+          onClick={() => setShowTerms(true)}
+          style={{ background: 'none', border: 'none', color: '#aaa', textDecoration: 'none', fontSize: '0.9rem', borderBottom: '1px dashed #555', paddingBottom: '2px', cursor: 'pointer' }}
+        >
+          Terms of Service & Privacy
+        </button>
+      </div>
+
     </div>
   )
 }
