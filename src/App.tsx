@@ -3,10 +3,14 @@ import { BrowserProvider, Contract, parseUnits, MaxUint256 } from 'ethers'
 import { useState, useEffect } from 'react' 
 import { ESCROW_ADDRESSES, ESCROW_ABI } from './contractConfig'
 
+// 🛣️ IMPORTAMOS LA LIBRERÍA DE RUTAS (NUEVO)
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+
 // 🔗 IMPORTAMOS LA CONEXIÓN CENTRALIZADA (Y EL CHAT)
 import { VaultChat } from './VaultChat';
 import { supabase } from './supabaseClient';
-import AdminDashboard from './AdminDashboard'; // 👈 IMPORTACIÓN DEL PANEL DE JUEZ
+import AdminDashboard from './AdminDashboard'; 
+import Terms from './Terms';
 
 // 🎨 IMPORTAMOS NUESTROS COMPONENTES VISUALES
 import { HeroStats } from './HeroStats';
@@ -82,7 +86,10 @@ const ERC20_ABI = [
   "function decimals() view returns (uint8)"
 ];
 
-export default function App() {
+// ==========================================
+// 🏦 COMPONENTE DE LA BÓVEDA (ANTES SE LLAMABA APP)
+// ==========================================
+function Vault() {
   
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const Web3Button = 'w3m-button' as any;
@@ -633,6 +640,28 @@ export default function App() {
 
         </div>
       )}
+
+      {/* 📜 AQUÍ ESTÁ EL LINK A TUS TÉRMINOS */}
+      <div style={{ marginTop: '50px', paddingBottom: '20px' }}>
+        <Link to="/terms" style={{ color: '#aaa', textDecoration: 'none', fontSize: '0.9rem', borderBottom: '1px dashed #555', paddingBottom: '2px' }}>
+          Terms of Service & Privacy
+        </Link>
+      </div>
+
     </div>
   )
+}
+
+// ==========================================
+// 🚦 ENRUTADOR PRINCIPAL (EL QUE MANEJA LAS VISTAS)
+// ==========================================
+export default function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<Vault />} />
+        <Route path="/terms" element={<Terms />} />
+      </Routes>
+    </Router>
+  );
 }
