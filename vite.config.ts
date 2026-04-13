@@ -6,5 +6,11 @@ export default defineConfig({
   plugins: [
     react(),
     nodePolyfills(),
-  ]
+  ],
+  define: {
+    // Le entregamos el objeto completo a las librerías Web3
+    'process.env': {
+      NODE_ENV: '"production"'
+    }
+  }
 })
