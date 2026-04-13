@@ -8,9 +8,8 @@ export default defineConfig({
     nodePolyfills(),
   ],
   define: {
-    // Le entregamos el objeto completo a las librerías Web3
-    'process.env': {
-      NODE_ENV: '"production"'
-    }
+    // 🔥 La forma CORRECTA y estricta de inyectarlo para Vercel
+    'process.env': JSON.stringify({ NODE_ENV: 'production' }),
+    global: 'globalThis',
   }
 })
