@@ -8,7 +8,7 @@ export default defineConfig({
     nodePolyfills(),
   ],
   define: {
-    // Esto evita que la app choque al buscar variables de entorno de Node
-    'process.env': {}
-
-}})
+    // Definimos explícitamente el entorno de producción para las librerías de Node/Web3
+    'process.env.NODE_ENV': JSON.stringify('production')
+  }
+})
