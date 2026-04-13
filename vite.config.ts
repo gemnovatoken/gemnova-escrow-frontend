@@ -7,4 +7,8 @@ export default defineConfig({
     react(),
     nodePolyfills(),
   ],
-})
+  define: {
+    // Esto evita que la app choque al buscar variables de entorno de Node
+    'process.env': {}
+
+}})
