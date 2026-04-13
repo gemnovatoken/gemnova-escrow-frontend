@@ -6,6 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     
+    <script>
+      window.global = window;
+      window.process = { env: { NODE_ENV: 'production' } };
+    </script>
     <title>Gem Nova Vault | Secure Decentralized Escrow</title>
     <meta name="title" content="Gem Nova Vault | Secure Decentralized Escrow">
     <meta name="description" content="Institutional-grade P2P security. Protect your trades with our multi-chain automated escrow system.">
