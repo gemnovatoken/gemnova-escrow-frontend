@@ -6,17 +6,15 @@ export default defineConfig({
   plugins: [
     react(),
     nodePolyfills({
-      // 🔥 EL SECRETO: Le prohibimos al polyfill que sobrescriba 'process'
       globals: {
-        Buffer: true,
+        Buffer: true, 
         global: true,
-        process: false, 
+        process: false, // 🔥 APAGAMOS EL POLYFILL FALSO QUE CAUSA EL CRASH
       },
     }),
   ],
   define: {
-    // Ahora nuestra variable está blindada y nadie la va a borrar
-    'process.env.NODE_ENV': JSON.stringify('production'),
+    // 🔥 INYECTAMOS LA VARIABLE DE FORMA NATIVA Y BLINDADA
     'process.env': JSON.stringify({ NODE_ENV: 'production' })
   }
 })
