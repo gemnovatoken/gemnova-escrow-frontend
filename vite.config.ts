@@ -5,17 +5,16 @@ import { nodePolyfills } from 'vite-plugin-node-polyfills'
 export default defineConfig({
   plugins: [
     react(),
-    nodePolyfills(),
+    // Dejamos que el polyfill haga su trabajo completo sin restricciones
+    nodePolyfills(), 
   ],
   define: {
-    // Cubrimos todas las formas en las que Web3Modal busca la variable
-    'process.env.NODE_ENV': JSON.stringify('production'),
-    'process.env': JSON.stringify({ NODE_ENV: 'production' }),
+    // Definimos la variable de producción estrictamente para Web3Modal
+    'process.env.NODE_ENV': '"production"',
     global: 'globalThis'
   },
   optimizeDeps: {
-    // 🔥 ESTE ES EL SECRETO: Obliga a Vercel a destruir la caché oculta (.vite) 
-    // y recompilar las librerías desde cero con las variables correctas.
+    // 🔥 LA ORDEN NUCLEAR: Fuerza a Vite a destruir la caché corrupta
     force: true 
   }
 })
