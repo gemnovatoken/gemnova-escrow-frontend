@@ -6,14 +6,17 @@ export default defineConfig({
   plugins: [
     react(),
     nodePolyfills({
-      // 1. SOLO cargamos Buffer para TonConnect. Prohibimos que toque el entorno.
-      include: ['buffer'],
+      // Dejamos que cargue Buffer para TON, pero le prohibimos arruinar 'process'
+      include: ['buffer'] 
     }),
   ],
+  resolve: {
+    alias: {
+      // 🔥 EL GOLPE FINAL: Toda librería que busque 'process' leerá nuestro archivo blindado
+      process: '/src/process-shim.js'
+    }
+  },
   define: {
-    // 2. Definimos la variable globalmente para que React y Web3Modal 
-    // no se estrellen buscando "process" en el navegador.
-    'process.env': JSON.stringify({ NODE_ENV: 'production' }),
-    global: 'window'
+    global: 'globalThis'
   }
 })
