@@ -137,7 +137,7 @@ export default function App() {
       if (!supabaseId) return; 
       const { data, error } = await supabase
         .from('contracts')
-        .select('status, amount_usdt, seller_wallet')
+        .select('status, amount_usdt, seller_wallet, recipient_wallet')
         .eq('id', supabaseId)
         .single(); 
 
@@ -147,7 +147,10 @@ export default function App() {
         
         const montoBase = data.amount_usdt ? data.amount_usdt : 0;
         setContractAmount(montoBase.toString()); 
-        setSellerWallet(data.seller_wallet ? data.seller_wallet : '0x000000000000000000000000000000000000dEaD');
+        // 🔥 EL TRUCO MAESTRO: Si existe recipient_wallet, úsalo. Si no, usa seller.
+        const billeteraReal = data.recipient_wallet ? data.recipient_wallet : (data.seller_wallet ? data.seller_wallet : '0x000000000000000000000000000000000000dEaD');
+        
+        setSellerWallet(billeteraReal);
 
         if (montoBase > 0) {
           const fee = montoBase * 0.0095; 
