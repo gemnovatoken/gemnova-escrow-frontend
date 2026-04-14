@@ -29,12 +29,12 @@ const sepolia = {
   rpcUrl: 'https://sepolia.drpc.org' 
 }
 
-const bscTestnet = {
-  chainId: 97,
-  name: 'BSC Testnet',
-  currency: 'tBNB',
-  explorerUrl: 'https://testnet.bscscan.com',
-  rpcUrl: 'https://data-seed-prebsc-1-s1.binance.org:8545' 
+const bscMainnet = {
+  chainId: 56,
+  name: 'BNB Smart Chain',
+  currency: 'BNB',
+  explorerUrl: 'https://bscscan.com',
+  rpcUrl: 'https://bsc-dataseed.binance.org' // El RPC oficial de Binance
 }
 
 const arbitrumSepolia = {
@@ -70,8 +70,7 @@ const ethersConfig = defaultConfig({
 // 🔥 Encendemos el motor con las 4 redes EVM
 createWeb3Modal({
   ethersConfig,
-  chains: [sepolia, bscTestnet, arbitrumSepolia, polygonAmoy], 
-  projectId: 'cd2c2be00e014edbbf0b286967b34923',
+  chains: [bscMainnet, sepolia, arbitrumSepolia, polygonAmoy],  projectId: 'cd2c2be00e014edbbf0b286967b34923',
   enableAnalytics: true,
   themeVariables: {
     '--w3m-accent': '#FFD700', 
