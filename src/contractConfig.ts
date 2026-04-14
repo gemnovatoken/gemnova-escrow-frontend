@@ -3,7 +3,7 @@
 // 🗺️ EL MAPA MULTICHAIN EVM DE GEM NOVA
 export const ESCROW_ADDRESSES: Record<number, string> = {
   11155111: "0x3056996f55Ea0B086e40298eFd4E91Bba1623346", // 🟢 Ethereum Sepolia (Activo)
-  97: "",       // 🟡 BSC Testnet (Pendiente)
+  56: "0xC0b496c6e38F9eaB9e6F90F9Dc696Bc1037f6Bcf",       // 🟡 BSC MAINENT (Pendiente)
   421614: "",   // 🔵 Arbitrum Sepolia (Pendiente)
   80002: "0xD16651f24fB67d483Df4f6685C66Da1a2778D430",    // 🟣 Polygon Amoy Testnet (activo)
 };
