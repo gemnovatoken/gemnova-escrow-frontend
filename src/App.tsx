@@ -37,12 +37,12 @@ const bscMainnet = {
   rpcUrl: 'https://bsc-dataseed.binance.org' // El RPC oficial de Binance
 }
 
-const arbitrumSepolia = {
-  chainId: 421614,
-  name: 'Arbitrum Sepolia',
+const arbitrumMainnet = {
+  chainId: 42161, // 👈 El ID oficial de Arbitrum One
+  name: 'Arbitrum One',
   currency: 'ETH',
-  explorerUrl: 'https://sepolia.arbiscan.io',
-  rpcUrl: 'https://sepolia-rollup.arbitrum.io/rpc' 
+  explorerUrl: 'https://arbiscan.io',
+  rpcUrl: 'https://arb1.arbitrum.io/rpc' 
 }
 
 const polygonAmoy = {
@@ -70,7 +70,7 @@ const ethersConfig = defaultConfig({
 // 🔥 Encendemos el motor con las 4 redes EVM
 createWeb3Modal({
   ethersConfig,
-  chains: [bscMainnet, sepolia, arbitrumSepolia, polygonAmoy],  projectId: 'cd2c2be00e014edbbf0b286967b34923',
+  chains: [bscMainnet, sepolia, arbitrumMainnet, polygonAmoy],  projectId: 'cd2c2be00e014edbbf0b286967b34923',
   enableAnalytics: true,
   themeVariables: {
     '--w3m-accent': '#FFD700', 
