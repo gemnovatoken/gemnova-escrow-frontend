@@ -6,13 +6,9 @@ export default defineConfig({
   plugins: [
     react(),
     nodePolyfills({
-      // 🔥 EL SECRETO: Obligamos al polyfill a solo cargar Buffer para TON.
-      // Así, Vite maneja 'process' naturalmente y Web3Modal no choca.
-      include: ['buffer'], 
+      // 🔥 Obligamos al plugin a cargar SOLO Buffer para TON.
+      // Le prohibimos tocar 'process' para que no borre nuestro script.
+      include: ['buffer'],
     }),
-  ],
-  define: {
-    // Definimos globalThis por si alguna librería Web3 antigua lo busca
-    global: 'globalThis',
-  }
+  ]
 })
