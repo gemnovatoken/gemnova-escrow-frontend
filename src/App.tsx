@@ -526,17 +526,46 @@ export default function App() {
             </div>
         </div>
 
-        {/* 🦊 EL BOTÓN SALVAVIDAS PARA TELEGRAM */}
+        {/* 🆘 LOS BOTONES SALVAVIDAS PARA TELEGRAM (MOBILE FIX) */}
         {!isConnected && !userTONAddress && (
-            <button 
-                onClick={() => {
-                    const currentUrl = window.location.href.replace(/^https?:\/\//, '');
-                    window.location.href = `https://metamask.app.link/dapp/${currentUrl}`;
-                }}
-                style={{ padding: '10px 20px', backgroundColor: '#F6851B', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}
-            >
-                🦊 Open in MetaMask (Mobile Fix)
-            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px', alignItems: 'center' }}>
+                <p style={{ color: '#888', fontSize: '0.8rem', margin: '0' }}>Stuck in Telegram? Open in your wallet:</p>
+                
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                    {/* Botón de MetaMask */}
+                    <button 
+                        onClick={() => {
+                            const currentUrl = window.location.href.replace(/^https?:\/\//, '');
+                            window.location.href = `https://metamask.app.link/dapp/${currentUrl}`;
+                        }}
+                        style={{ padding: '8px 15px', backgroundColor: '#F6851B', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.85rem' }}
+                    >
+                        🦊 MetaMask
+                    </button>
+
+                    {/* Botón de Trust Wallet */}
+                    <button 
+                        onClick={() => {
+                            const encodedUrl = encodeURIComponent(window.location.href);
+                            window.location.href = `https://link.trustwallet.com/open_url?coin_id=60&url=${encodedUrl}`;
+                        }}
+                        style={{ padding: '8px 15px', backgroundColor: '#3375BB', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.85rem' }}
+                    >
+                        🛡️ Trust Wallet
+                    </button>
+
+                    {/* El Comodín Universal */}
+                    <button 
+                        onClick={() => {
+                            navigator.clipboard.writeText(window.location.href);
+                            alert("🔗 Link copied! Open Chrome, Safari or your Wallet's browser and paste it to connect.");
+                        }}
+                        style={{ padding: '8px 15px', backgroundColor: '#333', color: '#fff', border: '1px solid #555', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.85rem' }}
+                    >
+                        🌐 Copy Link
+                    </button>
+                </div>
+            </div>
         )}
       </div>
 
