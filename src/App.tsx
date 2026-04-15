@@ -45,12 +45,12 @@ const arbitrumMainnet = {
   rpcUrl: 'https://arb1.arbitrum.io/rpc' 
 }
 
-const polygonAmoy = {
-  chainId: 80002,
-  name: 'Polygon Amoy',
+const polygonMainnet = {
+  chainId: 137, // 👈 El ID oficial de Polygon Mainnet
+  name: 'Polygon',
   currency: 'POL',
-  explorerUrl: 'https://amoy.polygonscan.com',
-  rpcUrl: 'https://rpc-amoy.polygon.technology' 
+  explorerUrl: 'https://polygonscan.com',
+  rpcUrl: 'https://polygon-rpc.com' 
 }
 
 const metadata = {
@@ -70,7 +70,7 @@ const ethersConfig = defaultConfig({
 // 🔥 Encendemos el motor con las 4 redes EVM
 createWeb3Modal({
   ethersConfig,
-  chains: [bscMainnet, sepolia, arbitrumMainnet, polygonAmoy],  projectId: 'cd2c2be00e014edbbf0b286967b34923',
+  chains: [bscMainnet, sepolia, arbitrumMainnet, polygonMainnet],  projectId: 'cd2c2be00e014edbbf0b286967b34923',
   enableAnalytics: true,
   themeVariables: {
     '--w3m-accent': '#FFD700', 
