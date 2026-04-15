@@ -21,12 +21,12 @@ import { storeCreateEscrow, storeReleaseFunds, storeRefund } from './tact_GemNov
 
 
 // 🌐 1. EL ARSENAL DE REDES (TESTNETS)
-const sepolia = {
-  chainId: 11155111,
-  name: 'Ethereum Sepolia',
+const ethereumMainnet = {
+  chainId: 1,
+  name: 'Ethereum',
   currency: 'ETH',
-  explorerUrl: 'https://sepolia.etherscan.io',
-  rpcUrl: 'https://sepolia.drpc.org' 
+  explorerUrl: 'https://etherscan.io',
+  rpcUrl: 'https://eth-mainnet.g.alchemy.com/v2/TU_LLAVE_ALCHEMY' // O el RPC público
 }
 
 const bscMainnet = {
@@ -70,7 +70,7 @@ const ethersConfig = defaultConfig({
 // 🔥 Encendemos el motor con las 4 redes EVM
 createWeb3Modal({
   ethersConfig,
-  chains: [bscMainnet, sepolia, arbitrumMainnet, polygonMainnet],  projectId: 'cd2c2be00e014edbbf0b286967b34923',
+  chains: [bscMainnet, ethereumMainnet, arbitrumMainnet, polygonMainnet],  projectId: 'cd2c2be00e014edbbf0b286967b34923',
   enableAnalytics: true,
   themeVariables: {
     '--w3m-accent': '#FFD700', 
