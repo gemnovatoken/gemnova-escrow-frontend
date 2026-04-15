@@ -512,16 +512,32 @@ export default function App() {
       )}
 
       {/* 🌐 SELECTORES DE BILLETERA (Siempre visibles para poder conectar) */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', gap: '15px', margin: '0 0 40px 0' }}>
-        <div style={{ display: 'flex', gap: '10px', padding: '10px', backgroundColor: '#222', borderRadius: '15px', border: isConnected ? '1px solid #FFD700' : '1px solid transparent' }}>
-            <span style={{color: '#888', alignSelf: 'center', fontSize: '0.9rem', marginRight: '5px'}}>EVM:</span>
-            <Web3NetworkButton /> 
-            <Web3Button />
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px', margin: '0 0 40px 0' }}>
+        
+        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', gap: '15px' }}>
+            <div style={{ display: 'flex', gap: '10px', padding: '10px', backgroundColor: '#222', borderRadius: '15px', border: isConnected ? '1px solid #FFD700' : '1px solid transparent' }}>
+                <span style={{color: '#888', alignSelf: 'center', fontSize: '0.9rem', marginRight: '5px'}}>EVM:</span>
+                <Web3NetworkButton /> 
+                <Web3Button />
+            </div>
+            <div style={{ display: 'flex', gap: '10px', padding: '10px', backgroundColor: '#0088cc22', borderRadius: '15px', border: userTONAddress ? '1px solid #0088cc' : '1px solid #0088cc55' }}>
+                <span style={{color: '#0088cc', alignSelf: 'center', fontSize: '0.9rem', marginRight: '5px'}}>TON:</span>
+                <TonConnectButton />
+            </div>
         </div>
-        <div style={{ display: 'flex', gap: '10px', padding: '10px', backgroundColor: '#0088cc22', borderRadius: '15px', border: userTONAddress ? '1px solid #0088cc' : '1px solid #0088cc55' }}>
-            <span style={{color: '#0088cc', alignSelf: 'center', fontSize: '0.9rem', marginRight: '5px'}}>TON:</span>
-            <TonConnectButton />
-        </div>
+
+        {/* 🦊 EL BOTÓN SALVAVIDAS PARA TELEGRAM */}
+        {!isConnected && !userTONAddress && (
+            <button 
+                onClick={() => {
+                    const currentUrl = window.location.href.replace(/^https?:\/\//, '');
+                    window.location.href = `https://metamask.app.link/dapp/${currentUrl}`;
+                }}
+                style={{ padding: '10px 20px', backgroundColor: '#F6851B', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}
+            >
+                🦊 Open in MetaMask (Mobile Fix)
+            </button>
+        )}
       </div>
 
       {/* SOLO MUESTRA LA BÓVEDA SI HAY WALLET CONECTADA */}
