@@ -404,25 +404,12 @@ export default function App() {
   }
 
   // ==========================================
-  // 🚨 FUNCIÓN 3: SISTEMA DE DISPUTAS Y REEMBOLSOS (AMBOS ROLES)
+  // 🚨 FUNCIÓN 3: SISTEMA DE REEMBOLSOS (SOLO SELLER / JUEZ)
   // ==========================================
   const handleRefundFunds = async () => {
-    const reason = prompt("🚨 OPEN DISPUTE\n\nPlease explain the problem. This reason will be sent to the encrypted chat and evaluated by a Gem Nova Judge:");
-    
-    if (!reason) return alert("Dispute cancelled. You must provide a reason.");
-
+    // Nota: El botón de Refund voluntario no pide razón. 
+    // Esta función asume que el vendedor (o juez) está devolviendo el dinero legítimamente.
     if (!supabaseId || (!userTONAddress && (!isConnected || !walletProvider || !chainId))) return alert("Please connect your wallet first.");
-
-    try {
-      const currentWallet = userTONAddress || address || 'Unknown';
-      await supabase.from('messages').insert([{
-        contract_id: supabaseId,
-        sender_wallet: currentWallet,
-        message: `🚨 OFFICIAL DISPUTE OPENED: "${reason}". \n\nAwaiting Gem Nova Judge review.`
-      }]);
-    } catch (err) {
-      console.error("Error saving dispute to chat", err);
-    }
 
     if (userTONAddress) {
       try {
@@ -463,13 +450,43 @@ export default function App() {
       console.error("Error al reembolsar:", error);
       setTxStatus('idle');
       const err = error as { reason?: string; message?: string, code?: string };
-      if (err.reason?.includes("Solo el Juez") || err.message?.includes("Solo el Juez")) {
-        alert("✅ Dispute Registered in Chat!\n\nThe funds are frozen. A Gem Nova Judge will review the chat history and resolve the dispute shortly.");
-      } else {
-        alert("Error: " + (err.reason || err.message));
-      }
+      alert("Error: " + (err.reason || err.message));
     }
   }
+
+  // ==========================================
+  // ⚖️ FUNCIÓN 4: ABRIR DISPUTA (SOLO BASE DE DATOS)
+  // ==========================================
+  const handleOpenDispute = async () => {
+    const reason = prompt("🚨 OPEN DISPUTE\n\nPlease explain the problem. This reason will be sent to the encrypted chat and evaluated by a Gem Nova Judge:");
+    
+    if (!reason) return alert("Dispute cancelled. You must provide a reason.");
+    if (!supabaseId) return;
+
+    setTxStatus('refunding'); // Usamos esto solo para la animación de carga
+    try {
+      // 1. Cambiamos el estado en Supabase a DISPUTED
+      await supabase.from('contracts').update({ status: 'DISPUTED' }).eq('id', supabaseId);
+
+      // 2. Registramos el mensaje oficial en el chat
+      const currentWallet = userTONAddress || address || 'Unknown';
+      await supabase.from('messages').insert([{
+        contract_id: supabaseId,
+        sender_wallet: currentWallet,
+        message: `🚨 OFFICIAL DISPUTE OPENED: "${reason}". \n\nAwaiting Gem Nova Judge review.`
+      }]);
+
+      alert("✅ Dispute Registered in Chat!\n\nThe funds are frozen in the Blockchain. A Gem Nova Judge will review the chat history and resolve the dispute shortly.");
+      
+      // 3. Actualizamos la pantalla al instante
+      setDbStatus('DISPUTED'); 
+      setTxStatus('idle');
+    } catch (error) {
+      console.error("Error opening dispute:", error);
+      setTxStatus('idle');
+      alert("Error opening dispute. Try again.");
+    }
+  };
 
   useEffect(() => {
     if (txStatus === 'success' && dbStatus !== 'PENDING') {
@@ -617,7 +634,8 @@ export default function App() {
                     <button onClick={handleRefundFunds} style={{ flex: 1, padding: '12px', backgroundColor: '#e74c3c', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
                       🛑 Refund Buyer
                     </button>
-                    <button onClick={handleRefundFunds} style={{ flex: 1, padding: '12px', backgroundColor: 'transparent', color: '#f39c12', border: '1px solid #f39c12', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
+                    {/* 👇 CAMBIADO A handleOpenDispute */}
+                    <button onClick={handleOpenDispute} style={{ flex: 1, padding: '12px', backgroundColor: 'transparent', color: '#f39c12', border: '1px solid #f39c12', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
                       ⚠️ Open Dispute
                     </button>
                   </div>
@@ -635,6 +653,13 @@ export default function App() {
                 <div style={{ padding: '20px', backgroundColor: '#330000', borderRadius: '10px', border: '2px dashed #ff4444' }}>
                   <h3 style={{ color: '#e74c3c', margin: '0 0 10px 0' }}>🛑 Deal Cancelled</h3>
                   <p style={{ margin: 0, color: '#ccc' }}>The buyer has requested a refund and the escrow is now closed.</p>
+                </div>
+              )}
+              {/* ESTADO DE DISPUTA ABIERTA */}
+              {dbStatus === 'DISPUTED' && (
+                <div style={{ padding: '20px', backgroundColor: '#331a00', borderRadius: '10px', border: '2px dashed #f39c12', marginTop: '20px' }}>
+                  <h2 style={{ color: '#f39c12', margin: '0 0 10px 0' }}>⚖️ Under Review</h2>
+                  <p style={{ margin: '0', fontSize: '1.1rem', color: '#ccc' }}>This contract is currently locked. A Gem Nova Judge is reviewing the chat history to resolve the dispute.</p>
                 </div>
               )}
             </div>
@@ -689,7 +714,8 @@ export default function App() {
                       {txStatus === 'releasing' && '⌛ Processing Release...'}
                       {txStatus === 'success' && '✅ Done! Waiting for Radar...'}
                     </button>
-                    <button onClick={handleRefundFunds} disabled={!supabaseId || txStatus !== 'idle'} style={{ padding: '10px 20px', fontSize: '1rem', backgroundColor: 'transparent', color: (!supabaseId || txStatus !== 'idle') ? '#777' : '#e74c3c', border: (!supabaseId || txStatus !== 'idle') ? '1px solid #777' : '1px solid #e74c3c', borderRadius: '8px', cursor: (!supabaseId || txStatus !== 'idle') ? 'not-allowed' : 'pointer', fontWeight: 'bold', width: '100%' }}>
+                    {/* 👇 CAMBIADO A handleOpenDispute */}
+                    <button onClick={handleOpenDispute} disabled={!supabaseId || txStatus !== 'idle'} style={{ padding: '10px 20px', fontSize: '1rem', backgroundColor: 'transparent', color: (!supabaseId || txStatus !== 'idle') ? '#777' : '#e74c3c', border: (!supabaseId || txStatus !== 'idle') ? '1px solid #777' : '1px solid #e74c3c', borderRadius: '8px', cursor: (!supabaseId || txStatus !== 'idle') ? 'not-allowed' : 'pointer', fontWeight: 'bold', width: '100%' }}>
                       {txStatus === 'idle' && '🚨 Dispute Order'}
                       {txStatus === 'refunding' && '⌛ Processing Dispute...'}
                     </button>
@@ -708,6 +734,13 @@ export default function App() {
                 <div style={{ padding: '20px', backgroundColor: '#330000', borderRadius: '10px', border: '2px dashed #ff4444', marginTop: '20px' }}>
                   <h2 style={{ color: '#ff4444', margin: '0 0 10px 0' }}>🛑 Refund Complete</h2>
                   <p style={{ margin: '0', fontSize: '1.1rem' }}>The contract was cancelled and your funds have been returned to your wallet.</p>
+                </div>
+              )}
+              {/* ESTADO DE DISPUTA ABIERTA */}
+              {dbStatus === 'DISPUTED' && (
+                <div style={{ padding: '20px', backgroundColor: '#331a00', borderRadius: '10px', border: '2px dashed #f39c12', marginTop: '20px' }}>
+                  <h2 style={{ color: '#f39c12', margin: '0 0 10px 0' }}>⚖️ Under Review</h2>
+                  <p style={{ margin: '0', fontSize: '1.1rem', color: '#ccc' }}>This contract is currently locked. A Gem Nova Judge is reviewing the chat history to resolve the dispute.</p>
                 </div>
               )}
             </div>
