@@ -12,6 +12,8 @@ interface SellerStatsProps {
     disputesLost: number;
     avgTime: string;
   };
+  network: string; // 👈 NUEVO
+  name: string;    // 👈 NUEVO
 }
 
 export const SellerStats = ({ sellerAddress, stats }: SellerStatsProps) => {

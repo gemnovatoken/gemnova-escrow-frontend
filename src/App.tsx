@@ -117,6 +117,11 @@ export default function App() {
   const [feeAmount, setFeeAmount] = useState<string>('0');
   const [totalAmount, setTotalAmount] = useState<string>('0');
 
+  // 🌟 NUEVOS ESTADOS PARA PERFIL KAWAI/PREMIUM
+ const [contractNetwork, setContractNetwork] = useState<string>('TON');
+ const [receiverName, setReceiverName] = useState<string>('External Wallet');
+
+
   // 🎨 ESTADOS PARA LAS ESTADÍSTICAS REALES (Conectadas a Supabase)
   const [heroStats, setHeroStats] = useState({ volume: 0, count: 0, active: 0 });
   const [sellerStatsData, setSellerStatsData] = useState({
@@ -137,20 +142,30 @@ export default function App() {
       if (!supabaseId) return; 
       const { data, error } = await supabase
         .from('contracts')
-        .select('status, amount_usdt, seller_wallet, recipient_wallet')
+        .select('status, amount_usdt, seller_wallet, recipient_wallet, network') 
         .eq('id', supabaseId)
         .single(); 
 
       if (data && !error) {
         console.log("Estado y datos iniciales encontrados:", data);
         setDbStatus(data.status); 
+        setContractNetwork(data.network || 'TON'); 
         
         const montoBase = data.amount_usdt ? data.amount_usdt : 0;
         setContractAmount(montoBase.toString()); 
-        // 🔥 EL TRUCO MAESTRO: Si existe recipient_wallet, úsalo. Si no, usa seller.
-        const billeteraReal = data.recipient_wallet ? data.recipient_wallet : (data.seller_wallet ? data.seller_wallet : '0x000000000000000000000000000000000000dEaD');
         
+        const billeteraReal = data.recipient_wallet ? data.recipient_wallet : (data.seller_wallet ? data.seller_wallet : '0x000000000000000000000000000000000000dEaD');
         setSellerWallet(billeteraReal);
+
+        const { data: userData } = await supabase
+            .from('users')
+            .select('username')
+            .eq('wallet_address', billeteraReal)
+            .single();
+            
+        if (userData && userData.username) {
+            setReceiverName(userData.username);
+        }
 
         if (montoBase > 0) {
           const fee = montoBase * 0.0095; 
@@ -179,7 +194,7 @@ export default function App() {
         supabase.removeChannel(subscription);
       };
     }
-  }, [supabaseId, isSuperAdmin]); 
+  }, [supabaseId, isSuperAdmin]);
 
   // ==========================================
   // 📊 CEREBRO MATEMÁTICO: OBTENER ESTADÍSTICAS REALES
@@ -187,8 +202,8 @@ export default function App() {
   useEffect(() => {
     const fetchRealStats = async () => {
       if (sellerWallet && sellerWallet !== '0x000000000000000000000000000000000000dEaD') {
-        const { data: sData } = await supabase.from('contracts').select('status').eq('seller_wallet', sellerWallet);
-        if (sData) {
+// 👈 AQUÍ CORREGIMOS EL BUG: Buscamos por recipient_wallet
+        const { data: sData } = await supabase.from('contracts').select('status').eq('recipient_wallet', sellerWallet);        if (sData) {
           const total = sData.length;
           const completed = sData.filter(c => c.status === 'COMPLETED').length;
           const refunded = sData.filter(c => c.status === 'REFUNDED').length; 
@@ -629,8 +644,8 @@ export default function App() {
             // 👤 VISTA DEL CLIENTE (BUYER)
             <div style={{ marginTop: '20px' }}>
               
-              {/* TARJETA DE REPUTACIÓN DEL VENDEDOR */}
-              {sellerWallet && <SellerStats sellerAddress={sellerWallet} stats={sellerStatsData} />}
+              {/* 🌟 PASAMOS LOS NUEVOS DATOS A LA TARJETA DEL RECEPTOR */}
+              {sellerWallet && <SellerStats sellerAddress={sellerWallet} stats={sellerStatsData} network={contractNetwork} name={receiverName} />}
 
               {/* PANEL DEL CLIENTE SEGÚN EL ESTATUS */}
               {dbStatus === 'PENDING' && (
