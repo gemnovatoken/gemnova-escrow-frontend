@@ -213,7 +213,7 @@ export default function App() {
             totalTrades: total,
             disputeRatio: total > 0 ? Math.round((refunded / total) * 100) : 0,
             disputesWon: 0, 
-            disputesLost: 100, 
+            disputesLost: 0, 
             avgTime: '< 24 hrs'
           });
         }
