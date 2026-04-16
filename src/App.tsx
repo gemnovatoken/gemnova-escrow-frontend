@@ -142,7 +142,7 @@ export default function App() {
       if (!supabaseId) return; 
       const { data, error } = await supabase
         .from('contracts')
-        .select('status, amount_usdt, seller_wallet, recipient_wallet, network') 
+        .select('status, amount_usdt, seller_wallet, recipient_wallet, network, creator_id') // 👈 Pedimos el creator_id 
         .eq('id', supabaseId)
         .single(); 
 
@@ -159,8 +159,8 @@ export default function App() {
 
         const { data: userData } = await supabase
             .from('users')
-            .select('username')
-            .eq('wallet_address', billeteraReal)
+            .select('username') // 👈 ESTO ES OBLIGATORIO ANTES DEL .eq()
+            .eq('telegram_id', data.creator_id) // 👈 USAMOS EL TELEGRAM ID, NO LA WALLET            .eq('wallet_address', billeteraReal)
             .single();
             
         if (userData && userData.username) {
