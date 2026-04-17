@@ -455,36 +455,51 @@ export default function App() {
   }
 
   // ==========================================
-  // ⚖️ FUNCIÓN 4: ABRIR DISPUTA (SOLO BASE DE DATOS)
+  // ⚖️ FUNCIÓN 4: ABRIR DISPUTA (MODO DETECTIVE)
   // ==========================================
   const handleOpenDispute = async () => {
-    const reason = prompt("🚨 OPEN DISPUTE\n\nPlease explain the problem. This reason will be sent to the encrypted chat and evaluated by a Gem Nova Judge:");
-    
-    if (!reason) return alert("Dispute cancelled. You must provide a reason.");
+    // 1. Recolectamos la información mediante prompts
+    const reason = prompt("🚨 DISPUTE REASON:\nWhat exactly happened with this trade?");
+    if (!reason) return; // Si el usuario cancela, detenemos el proceso
+
+    const reporterID = prompt("🙋‍♂️ YOUR IDENTITY:\nEnter your Telegram @Username or ID so the Judge can contact you:");
+    if (!reporterID) return alert("Dispute cancelled. Contact information is required.");
+
+    const targetID = prompt("👤 COUNTERPARTY IDENTITY:\nEnter the other person's Telegram @Username (Leave empty if unknown):") || "Unknown";
+
     if (!supabaseId) return;
 
-    setTxStatus('refunding'); // Usamos esto solo para la animación de carga
+    setTxStatus('refunding'); // Usamos el estado de carga visual
     try {
-      // 1. Cambiamos el estado en Supabase a DISPUTED
+      // 2. Bloqueamos el contrato en la Base de Datos (Estado DISPUTED)
       await supabase.from('contracts').update({ status: 'DISPUTED' }).eq('id', supabaseId);
 
-      // 2. Registramos el mensaje oficial en el chat
+      // 3. CREAMOS EL "DOSSIER" PARA EL CHAT (Sin tocar tablas extra en Supabase)
       const currentWallet = userTONAddress || address || 'Unknown';
+      const dossierMessage = 
+        `⚠️ --- OFFICIAL DISPUTE OPENED --- ⚠️\n\n` +
+        `📝 REASON: ${reason}\n` +
+        `🙋‍♂️ REPORTER (You): ${reporterID}\n` +
+        `👥 COUNTERPARTY: ${targetID}\n` +
+        `🔗 WALLET IN USE: ${currentWallet}\n\n` +
+        `⚖️ A Gem Nova Judge has been notified. The funds are locked in the Vault. Please do not close this chat.`;
+
+      // 4. Enviamos el mensaje al chat
       await supabase.from('messages').insert([{
         contract_id: supabaseId,
-        sender_wallet: currentWallet,
-        message: `🚨 OFFICIAL DISPUTE OPENED: "${reason}". \n\nAwaiting Gem Nova Judge review.`
+        sender_wallet: currentWallet, // Lo mandamos desde la wallet del usuario para que quede registrado quién abrió la disputa
+        message: dossierMessage
       }]);
 
-      alert("✅ Dispute Registered in Chat!\n\nThe funds are frozen in the Blockchain. A Gem Nova Judge will review the chat history and resolve the dispute shortly.");
+      alert("✅ Dispute Registered!\n\nYour contact info and reason have been sent to the Judge via the secure chat. Please keep this tab open or check the bot for updates.");
       
-      // 3. Actualizamos la pantalla al instante
+      // 5. Actualizamos la pantalla al instante para mostrar el estado "Under Review"
       setDbStatus('DISPUTED'); 
       setTxStatus('idle');
     } catch (error) {
       console.error("Error opening dispute:", error);
       setTxStatus('idle');
-      alert("Error opening dispute. Try again.");
+      alert("Error opening dispute. Please try again.");
     }
   };
 
