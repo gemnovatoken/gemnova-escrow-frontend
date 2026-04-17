@@ -339,6 +339,11 @@ export default function App() {
       };
 
       await tonConnectUI.sendTransaction(transaction);
+      
+      // 🚀 LA CURA EXCLUSIVA PARA TON: Forzamos el estado a ACTIVE
+      await supabase.from('contracts').update({ status: 'ACTIVE' }).eq('id', supabaseId);
+      setDbStatus('ACTIVE');
+      
       setTxStatus('success');
 
     } catch (error) {
@@ -348,11 +353,13 @@ export default function App() {
     }
   }
 
-  // ==========================================
+ // ==========================================
   // 🔓 FUNCIÓN 2: LIBERAR FONDOS (SOLO BUYER)
   // ==========================================
   const handleReleaseFunds = async () => {
     if (!supabaseId) return;
+    
+    // 👇 ESTE ES EL BLOQUE DE TON QUE DEBES REEMPLAZAR 👇
     if (userTONAddress) {
       try {
         setTxStatus('releasing');
@@ -373,6 +380,11 @@ export default function App() {
         };
 
         await tonConnectUI.sendTransaction(transaction);
+        
+        // 🚀 LA CURA EXCLUSIVA PARA TON: Forzamos el estado a COMPLETED
+        await supabase.from('contracts').update({ status: 'COMPLETED' }).eq('id', supabaseId);
+        setDbStatus('COMPLETED');
+        
         setTxStatus('success');
       } catch (error) {
         console.error("Error TON Release:", error);
@@ -380,6 +392,9 @@ export default function App() {
       }
       return; 
     }
+    // 👆 HASTA AQUÍ EL BLOQUE DE TON 👆
+
+    // ... (Deja el resto del código de EVM exactamente como está) ...
     if (!isConnected || !walletProvider || !chainId) return alert("Por favor conecta tu billetera.");
 
     const contractAddressForCurrentChain = ESCROW_ADDRESSES[chainId];
@@ -411,6 +426,7 @@ export default function App() {
     // Esta función asume que el vendedor (o juez) está devolviendo el dinero legítimamente.
     if (!supabaseId || (!userTONAddress && (!isConnected || !walletProvider || !chainId))) return alert("Please connect your wallet first.");
 
+    // 👇 ESTE ES EL BLOQUE DE TON QUE DEBES REEMPLAZAR 👇
     if (userTONAddress) {
       try {
         setTxStatus('refunding');
@@ -424,7 +440,13 @@ export default function App() {
             validUntil: Math.floor(Date.now() / 1000) + 360,
             messages: [{ address: "EQCsagpCK6aagQFs4owb-7AewXsNHwOeMdhzg4Cwo9MhCCAd", amount: toNano('0.02').toString(), payload: payloadBoc }]
         };
+        
         await tonConnectUI.sendTransaction(transaction);
+        
+        // 🚀 LA CURA EXCLUSIVA PARA TON: Forzamos el estado a REFUNDED
+        await supabase.from('contracts').update({ status: 'REFUNDED' }).eq('id', supabaseId);
+        setDbStatus('REFUNDED');
+        
         setTxStatus('success');
       } catch (error) {
         console.error("Error TON Refund:", error);
@@ -432,6 +454,7 @@ export default function App() {
       }
       return; 
     }
+    // 👆 HASTA AQUÍ EL BLOQUE DE TON 👆
 
     const contractAddressForCurrentChain = ESCROW_ADDRESSES[chainId!];
     if (!contractAddressForCurrentChain || contractAddressForCurrentChain === "") return;
