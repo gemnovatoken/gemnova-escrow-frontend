@@ -1,5 +1,5 @@
 import { createWeb3Modal, defaultConfig, useWeb3ModalAccount, useWeb3ModalProvider } from '@web3modal/ethers/react'
-import { BrowserProvider, Contract, parseUnits, MaxUint256 } from 'ethers' 
+import { BrowserProvider, Contract, parseUnits } from 'ethers' 
 import { useState, useEffect } from 'react' 
 import { ESCROW_ADDRESSES, ESCROW_ABI } from './contractConfig'
 
@@ -239,30 +239,29 @@ export default function App() {
     const clean = uuid.replace(/-/g, ''); 
     return "0x" + clean.padEnd(64, '0'); 
   }
-
-  // ==========================================
-  // 🛡️ FUNCIÓN 1: METER EL DINERO (EVM / METAMASK)
+// ==========================================
+  // 🛡️ FUNCTION 1: SECURE FUNDS (EVM / METAMASK)
   // ==========================================
   const handleCreateEscrow = async () => {
     if (!supabaseId) return;
     if (!isConnected || !walletProvider || !chainId) {
-      alert("Por favor conecta tu billetera de Ethereum/Polygon.");
+      alert("Please connect your Ethereum/Polygon wallet.");
       return;
     }
 
     if (sellerWallet && !sellerWallet.startsWith('0x')) {
-      alert("🚨 Error Multichain: El vendedor usó una billetera de TON. Por favor, desconecta MetaMask y conecta Tonkeeper para pagar este contrato.");
+      alert("🚨 Multichain Error: The seller used a TON wallet. Please disconnect MetaMask and connect Tonkeeper to pay for this contract.");
       return;
     }
 
     if (!sellerWallet || contractAmount === '0') {
-      alert("Error: No se pudieron cargar los datos del contrato. Espera un segundo y vuelve a intentar.");
+      alert("Error: Could not load contract data. Please wait a second and try again.");
       return;
     }
 
     const contractAddressForCurrentChain = ESCROW_ADDRESSES[chainId];
     if (!contractAddressForCurrentChain || contractAddressForCurrentChain === "") {
-      alert("🚧 Bóveda en construcción en esta red.");
+      alert("🚧 Vault under construction on this network.");
       return;
     }
 
@@ -299,9 +298,9 @@ export default function App() {
       
       setTxStatus('success');
     } catch (error) {
-      console.error("Error en el protocolo:", error);
+      console.error("Protocol Error:", error);
       setTxStatus('idle');
-      alert("La transacción fue cancelada o falló. Revisa tu saldo.");
+      alert("Transaction cancelled or failed. Please check your balance and try again.");
     }
   }
 
@@ -487,12 +486,11 @@ export default function App() {
   }
 
   // ==========================================
-  // ⚖️ FUNCIÓN 4: ABRIR DISPUTA (MODO DETECTIVE)
+  // ⚖️ FUNCTION 4: OPEN DISPUTE (DETECTIVE MODE)
   // ==========================================
   const handleOpenDispute = async () => {
-    // 1. Recolectamos la información mediante prompts
     const reason = prompt("🚨 DISPUTE REASON:\nWhat exactly happened with this trade?");
-    if (!reason) return; // Si el usuario cancela, detenemos el proceso
+    if (!reason) return; 
 
     const reporterID = prompt("🙋‍♂️ YOUR IDENTITY:\nEnter your Telegram @Username or ID so the Judge can contact you:");
     if (!reporterID) return alert("Dispute cancelled. Contact information is required.");
@@ -501,12 +499,33 @@ export default function App() {
 
     if (!supabaseId) return;
 
-    setTxStatus('refunding'); // Usamos el estado de carga visual
+    setTxStatus('refunding'); 
+
     try {
-      // 2. Bloqueamos el contrato en la Base de Datos (Estado DISPUTED)
+      // ⛓️ LÓGICA BLOCKCHAIN V2.2 (EVM)
+      if (!userTONAddress && isConnected && walletProvider && chainId) {
+          const contractAddressForCurrentChain = ESCROW_ADDRESSES[chainId];
+          const provider = new BrowserProvider(walletProvider);
+          const signer = await provider.getSigner();
+          const escrowContract = new Contract(contractAddressForCurrentChain, ESCROW_ABI, signer);
+          const usdtAddress = await escrowContract.usdt();
+          const usdtWithSigner = new Contract(usdtAddress, ERC20_ABI, signer);
+
+          // 1. Cobrar $1.00 USDT exacto (6 decimales)
+          const disputeFeeWei = parseUnits("1.0", 6);
+          
+          const txApprove = await usdtWithSigner.approve(contractAddressForCurrentChain, disputeFeeWei);
+          await txApprove.wait();
+
+          // 2. Congelar Bóveda
+          const idParaContrato = formatearIdParaBlockchain(supabaseId);
+          const txDispute = await escrowContract.abrirDisputa(idParaContrato);
+          await txDispute.wait();
+      }
+
+      // 🗄️ LÓGICA BASE DE DATOS Y CHAT (Se ejecuta después de pagar)
       await supabase.from('contracts').update({ status: 'DISPUTED' }).eq('id', supabaseId);
 
-      // 3. CREAMOS EL "DOSSIER" PARA EL CHAT (Sin tocar tablas extra en Supabase)
       const currentWallet = userTONAddress || address || 'Unknown';
       const dossierMessage = 
         `⚠️ --- OFFICIAL DISPUTE OPENED --- ⚠️\n\n` +
@@ -516,22 +535,20 @@ export default function App() {
         `🔗 WALLET IN USE: ${currentWallet}\n\n` +
         `⚖️ A Gem Nova Judge has been notified. The funds are locked in the Vault. Please do not close this chat.`;
 
-      // 4. Enviamos el mensaje al chat
       await supabase.from('messages').insert([{
         contract_id: supabaseId,
-        sender_wallet: currentWallet, // Lo mandamos desde la wallet del usuario para que quede registrado quién abrió la disputa
+        sender_wallet: currentWallet, 
         message: dossierMessage
       }]);
 
-      alert("✅ Dispute Registered!\n\nYour contact info and reason have been sent to the Judge via the secure chat. Please keep this tab open or check the bot for updates.");
-      
-      // 5. Actualizamos la pantalla al instante para mostrar el estado "Under Review"
+      alert("✅ Dispute Registered & Vault Locked!\n\nYour info has been sent to the Judge.");
       setDbStatus('DISPUTED'); 
       setTxStatus('idle');
+
     } catch (error) {
-      console.error("Error opening dispute:", error);
+      console.error("Dispute Error:", error);
       setTxStatus('idle');
-      alert("Error opening dispute. Please try again.");
+      alert("Error opening dispute. Make sure you have at least $1.00 USDT to open the case.");
     }
   };
 
