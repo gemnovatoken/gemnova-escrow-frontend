@@ -2,6 +2,7 @@ import { createWeb3Modal, defaultConfig, useWeb3ModalAccount, useWeb3ModalProvid
 import { BrowserProvider, Contract, parseUnits } from 'ethers' 
 import { useState, useEffect } from 'react' 
 import { ESCROW_ADDRESSES, ESCROW_ABI } from './contractConfig'
+import { useEscrowFeatures } from './hooks/useEscrowFeatures';
 
 // 🔗 IMPORTAMOS LA CONEXIÓN CENTRALIZADA (Y EL CHAT)
 import { VaultChat } from './VaultChat';
@@ -116,6 +117,16 @@ export default function App() {
   const [sellerWallet, setSellerWallet] = useState<string>('');
   const [feeAmount, setFeeAmount] = useState<string>('0');
   const [totalAmount, setTotalAmount] = useState<string>('0');
+
+  // 🔌 CONECTAMOS LAS FUNCIONES PREMIUM (TOP-UP Y EXTEND)
+  const { handleTopUp, handleExtendTime } = useEscrowFeatures({
+    supabaseId,
+    isConnected,
+    walletProvider,
+    chainId,
+    contractAmount,
+    setTxStatus
+  });
 
   // 🌟 NUEVOS ESTADOS PARA PERFIL KAWAI/PREMIUM
  const [contractNetwork, setContractNetwork] = useState<string>('TON');
@@ -694,6 +705,12 @@ export default function App() {
                 <div style={{ padding: '20px', backgroundColor: '#001a33', borderRadius: '10px', border: '2px solid #3498db' }}>
                   <h3 style={{ color: '#3498db', marginTop: 0 }}>👨‍💻 Merchant Control Panel</h3>
                   <p style={{ fontSize: '0.9rem', color: '#ccc', marginBottom: '20px' }}>Funds are secured. Deliver your work. If requested, you can refund or dispute.</p>
+                  
+                  {/* 🔥 NUEVO BOTÓN: EXTENDER TIEMPO (SELLER) */}
+                  <button onClick={handleExtendTime} disabled={!supabaseId || txStatus !== 'idle'} style={{ width: '100%', marginBottom: '15px', padding: '12px', backgroundColor: '#8e44ad', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: (!supabaseId || txStatus !== 'idle') ? 'not-allowed' : 'pointer' }}>
+                      ⏳ Need more time? Buy Extension
+                  </button>
+
                   <div style={{ display: 'flex', gap: '10px' }}>
                     <button onClick={handleRefundFunds} style={{ flex: 1, padding: '12px', backgroundColor: '#e74c3c', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
                       🛑 Refund Buyer
@@ -778,6 +795,17 @@ export default function App() {
                       {txStatus === 'releasing' && '⌛ Processing Release...'}
                       {txStatus === 'success' && '✅ Done! Waiting for Radar...'}
                     </button>
+
+                    {/* 🔥 NUEVOS BOTONES: TOP-UP Y EXTENDER TIEMPO (BUYER) */}
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                        <button onClick={handleTopUp} disabled={!supabaseId || txStatus !== 'idle'} style={{ flex: 1, padding: '10px', backgroundColor: '#0088cc', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: (!supabaseId || txStatus !== 'idle') ? 'not-allowed' : 'pointer' }}>
+                            💰 Add Bonus (Top-Up)
+                        </button>
+                        <button onClick={handleExtendTime} disabled={!supabaseId || txStatus !== 'idle'} style={{ flex: 1, padding: '10px', backgroundColor: '#8e44ad', color: 'white', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: (!supabaseId || txStatus !== 'idle') ? 'not-allowed' : 'pointer' }}>
+                            ⏳ Extend Time
+                        </button>
+                    </div>
+
                     {/* 👇 CAMBIADO A handleOpenDispute */}
                     <button onClick={handleOpenDispute} disabled={!supabaseId || txStatus !== 'idle'} style={{ padding: '10px 20px', fontSize: '1rem', backgroundColor: 'transparent', color: (!supabaseId || txStatus !== 'idle') ? '#777' : '#e74c3c', border: (!supabaseId || txStatus !== 'idle') ? '1px solid #777' : '1px solid #e74c3c', borderRadius: '8px', cursor: (!supabaseId || txStatus !== 'idle') ? 'not-allowed' : 'pointer', fontWeight: 'bold', width: '100%' }}>
                       {txStatus === 'idle' && '🚨 Dispute Order'}
