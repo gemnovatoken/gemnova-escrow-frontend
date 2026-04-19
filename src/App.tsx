@@ -275,24 +275,33 @@ export default function App() {
 
       const tokenDecimals = await usdtContract.decimals();
       const idParaContrato = formatearIdParaBlockchain(supabaseId);
-      
       const contraparteReal = sellerWallet; 
-      const cantidadReal = parseUnits(contractAmount, tokenDecimals); 
+      
+      // 🧠 LÓGICA V2.2: Matemática Aditiva
+      const amountNum = parseFloat(contractAmount);
+      const totalNeededNum = amountNum * 1.0095; // Monto + 0.95% Fee
+
+      // Convertimos a Wei (6 decimales para Polygon)
+      const amountWei = parseUnits(amountNum.toFixed(6), tokenDecimals); 
+      const totalNeededWei = parseUnits(totalNeededNum.toFixed(6), tokenDecimals); 
+      
       const usdtWithSigner = new Contract(usdtAddress, ERC20_ABI, signer);
       
+      // 1. Aprobamos el Monto + Fee exacto
       setTxStatus('approving');
-      const txApprove = await usdtWithSigner.approve(contractAddressForCurrentChain, MaxUint256); 
+      const txApprove = await usdtWithSigner.approve(contractAddressForCurrentChain, totalNeededWei); 
       await txApprove.wait();
 
+      // 2. Ejecutamos enviando solo el 'amountWei' original (El contrato toma el total)
       setTxStatus('creating');
-      const txCreate = await escrowContract.crearEscrow(idParaContrato, contraparteReal, cantidadReal);
+      const txCreate = await escrowContract.crearEscrow(idParaContrato, contraparteReal, amountWei);
       await txCreate.wait();
       
       setTxStatus('success');
     } catch (error) {
       console.error("Error en el protocolo:", error);
       setTxStatus('idle');
-      alert("Transaction cancelled or failed. Please try again.");
+      alert("La transacción fue cancelada o falló. Revisa tu saldo.");
     }
   }
 
