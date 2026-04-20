@@ -51,7 +51,7 @@ const polygonMainnet = {
   name: 'Polygon',
   currency: 'POL',
   explorerUrl: 'https://polygonscan.com',
-  rpcUrl: 'https://polygon-rpc.com' 
+  rpcUrl: 'https://polygon.llamarpc.com' 
 }
 
 const metadata = {
