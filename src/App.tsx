@@ -27,7 +27,7 @@ const ethereumMainnet = {
   name: 'Ethereum',
   currency: 'ETH',
   explorerUrl: 'https://etherscan.io',
-  rpcUrl: 'https://eth-mainnet.g.alchemy.com/v2/TU_LLAVE_ALCHEMY' // O el RPC público
+  rpcUrl: 'https://eth-mainnet.g.alchemy.com/v2/8If4B-WOHtrxbQA7f0EH_' // O el RPC público
 }
 
 const bscMainnet = {
