@@ -35,7 +35,7 @@ const bscMainnet = {
   name: 'BNB Smart Chain',
   currency: 'BNB',
   explorerUrl: 'https://bscscan.com',
-  rpcUrl: 'https://bsc-dataseed.binance.org' // El RPC oficial de Binance
+  rpcUrl: 'https://bnb-mainnet.g.alchemy.com/v2/8If4B-WOHtrxbQA7f0EH_' // El RPC oficial de Binance
 }
 
 const arbitrumMainnet = {
