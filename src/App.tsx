@@ -43,7 +43,7 @@ const arbitrumMainnet = {
   name: 'Arbitrum One',
   currency: 'ETH',
   explorerUrl: 'https://arbiscan.io',
-  rpcUrl: 'https://arb1.arbitrum.io/rpc' 
+  rpcUrl: 'https://arb-mainnet.g.alchemy.com/v2/8If4B-WOHtrxbQA7f0EH_' 
 }
 
 const polygonMainnet = {
@@ -51,7 +51,7 @@ const polygonMainnet = {
   name: 'Polygon',
   currency: 'POL',
   explorerUrl: 'https://polygonscan.com',
-  rpcUrl: 'https://polygon.llamarpc.com' 
+  rpcUrl: '//polygon-mainnet.g.alchemy.com/v2/8If4B-WOHtrxbQA7f0EH_' 
 }
 
 const metadata = {
